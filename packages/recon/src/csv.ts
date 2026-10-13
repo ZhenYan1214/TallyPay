@@ -2,8 +2,18 @@ import { fromUnits, toUnits } from "@tieout/sdk";
 import type { JournalEntry } from "./journal.js";
 import type { ReconReport } from "./reconcile.js";
 
+/**
+ * Memo text comes from the chain and may have been written by anyone, so a
+ * cell that would be read as a formula by Excel or Sheets (=, +, @, or a
+ * leading tab/CR) is neutralised with a leading apostrophe. Negative
+ * numbers are left alone so amount columns stay numeric.
+ */
+function guard(text: string): string {
+  return /^[=+@\t\r]/.test(text) || /^-(?![0-9.])/.test(text) ? `'${text}` : text;
+}
+
 function cell(value: string | number | undefined): string {
-  const text = value === undefined ? "" : String(value);
+  const text = guard(value === undefined ? "" : String(value));
   return /[",\n]/.test(text) ? `"${text.replace(/"/g, '""')}"` : text;
 }
 

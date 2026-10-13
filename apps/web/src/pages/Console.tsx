@@ -234,8 +234,8 @@ export default function Console({
   async function run(override?: LoadedLedger[], extraSigners: Address[] = []) {
     const ls = override ?? ledgers;
     const first = ls[0];
-    const net = first?.network ?? networkId;
-    const acct = first?.payer ?? account;
+    const net = first?.network || networkId;
+    const acct = first?.payer || account;
     setError(null);
     setResult(null);
     if (!isAddress(acct)) return setError(ls.length ? "The ledger has no wallet address." : "Enter the wallet address, or load a ledger.");
@@ -348,7 +348,13 @@ export default function Console({
           )}
         </div>
 
-        <div className="grid gap-4 p-5 md:grid-cols-12">
+        <form
+          className="grid gap-4 p-5 md:grid-cols-12"
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (!running && (ledgers.length || isAddress(account))) void run();
+          }}
+        >
           <Field label="Network" className="md:col-span-3">
             <select className="input" value={networkId} onChange={(e) => setNetworkId(e.target.value as NetworkId)}>
               {Object.values(NETWORKS).map((n) => (
@@ -364,7 +370,7 @@ export default function Console({
               <div className="grid gap-4 md:grid-cols-12">
                 <div className="md:col-span-12 flex flex-wrap items-center gap-2">
                   {PRESETS.map((p) => (
-                    <button key={p.label} type="button" className="chip hover:border-slate-300 hover:bg-slate-50" onClick={() => applyPreset(p.hours)}>{p.label}</button>
+                    <button key={p.label} type="button" className="chip hover:border-slate-300 hover:bg-slate-50" onClick={() => void applyPreset(p.hours)}>{p.label}</button>
                   ))}
                   {ledgers.some((l) => l.scan || l.execution) && (
                     <button type="button" className="chip hover:border-slate-300 hover:bg-slate-50" onClick={useLedgerRange}>Ledger's own range</button>
@@ -393,13 +399,13 @@ export default function Console({
             </Collapsible>
           </div>
           <div className="md:col-span-12 flex flex-wrap items-center gap-4">
-            <button className="btn-primary" disabled={running || (!ledgers.length && !isAddress(account))} onClick={() => run()}>
+            <button type="submit" className="btn-primary" disabled={running || (!ledgers.length && !isAddress(account))}>
               {running ? "Scanning Arc…" : statementMode ? "Statement for this wallet" : "Reconcile"}
             </button>
             {running && <ProgressBar value={progress.pct} label={progress.stage} />}
             {!running && statementMode && isAddress(account) && <span className="text-xs text-slate-500">No ledger loaded: you will get every movement, the roll-forward and the exports.</span>}
           </div>
-        </div>
+        </form>
       </section>
 
       {error && <Notice tone="error">{error}</Notice>}

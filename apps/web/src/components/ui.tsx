@@ -79,11 +79,11 @@ export function PageHeader({ eyebrow, title, lead, aside }: { eyebrow?: string; 
 
 export function Field({ label, hint, children, className = "" }: { label: string; hint?: ReactNode; children: ReactNode; className?: string }) {
   return (
-    <div className={className}>
+    <label className={`block ${className}`}>
       <span className="label">{label}</span>
       {children}
-      {hint && <p className="mt-1 text-xs text-slate-500">{hint}</p>}
-    </div>
+      {hint && <span className="mt-1 block text-xs text-slate-500">{hint}</span>}
+    </label>
   );
 }
 

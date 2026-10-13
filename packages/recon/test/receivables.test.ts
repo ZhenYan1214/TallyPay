@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type Address, type Hex } from "viem";
 import { paymentMemoId, toUnits, type AccountActivity, type PayoutInstruction, type TransferObservation } from "@tieout/sdk";
-import { buildJournal, camt054Xml, qboJournalCsv, reconcile } from "@tieout/recon";
+import { buildJournal, camt054Xml, qboJournalCsv, reconReportCsv, reconcile, xeroManualJournalCsv } from "@tieout/recon";
 
 const ME = "0x00000000000000000000000000000000000000ee" as Address;
 const addr = (n: number) => `0x${n.toString(16).padStart(40, "0")}` as Address;
@@ -176,5 +176,18 @@ describe("roll-forward exact to the wei", () => {
     expect(b.unexplainedWei).toBe(0n);
     expect(b.unexplained).toBe(0n);
     expect(b.closing).toBe(closingWei / E12);
+  });
+});
+
+describe("CSV safety", () => {
+  it("neutralises cells that spreadsheets would run as formulas, but keeps negative amounts numeric", () => {
+    const hostile: PayoutInstruction[] = [{ EndToEndId: "=1+1", recipient: addr(1), amount: "1.00", token: "USDC", payeeName: "@cmd" }];
+    const report = reconcile([{ PmtInfId: "R", instructions: hostile }], activity([transfer(ME, addr(1), "1.00", { memo: "=1+1" })]));
+    const csv = reconReportCsv(report, "https://x");
+    expect(csv).toContain("'=1+1");
+    expect(csv).toContain("'@cmd");
+    const xero = xeroManualJournalCsv(buildJournal(report, []));
+    expect(xero).toContain(",-1.00,");
+    expect(xero).not.toContain("'-1.00");
   });
 });

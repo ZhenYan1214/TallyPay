@@ -105,6 +105,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [priorRun, setPriorRun] = useState<MemoLookupResult[] | null>(null);
+  const [priorExecution, setPriorExecution] = useState<{ txHash: Hex; runId: string } | null>(null);
   const [sent, setSent] = useState<{ hash: Hex; ledger: LoadedLedger } | null>(null);
   const network = NETWORKS[networkId];
 
@@ -295,6 +296,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
                       const parsed = await readLedgerFile(f);
                       setInstructions(parsed.instructions.filter((i) => i.direction !== "in"));
                       if (parsed.PmtInfId) setRunId(parsed.PmtInfId);
+                      setPriorExecution(parsed.execution?.txHash && parsed.PmtInfId ? { txHash: parsed.execution.txHash as Hex, runId: parsed.PmtInfId } : null);
                       setSent(null);
                     } catch (err) {
                       setError((err as Error).message);
@@ -314,6 +316,13 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
           {duplicates.length > 0 && (
             <Notice tone="warn">
               Possible double payment in this run: {duplicates.join("; ")}. Each gets its own EndToEndId, so it will go through if you proceed.
+            </Notice>
+          )}
+          {priorExecution && priorExecution.runId === runId && (
+            <Notice tone="error">
+              This ledger file records that run <span className="font-mono text-xs">{priorExecution.runId}</span> was already sent in{" "}
+              <ExternalLink href={txUrl(network, priorExecution.txHash)} className="font-mono text-xs">{shortHash(priorExecution.txHash)}</ExternalLink>.
+              Not sending it again. Change the run id if this is genuinely a new run.
             </Notice>
           )}
           {priorRun && priorRun.length > 0 && (
@@ -365,7 +374,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
                 Before sending, Tieout checks Arc for an earlier anchor with the same run id so a double-submitted run cannot pay everyone twice.
               </p>
               <div className="flex flex-wrap items-center gap-3">
-                <button className="btn-primary" disabled={!!busy || !!sent} onClick={send}>
+                <button className="btn-primary" disabled={!!busy || !!sent || (priorExecution?.runId === runId)} onClick={send}>
                   {busy ?? `Send ${plan.plan.anchor.NbOfTxs} payment${plan.plan.anchor.NbOfTxs === 1 ? "" : "s"} in one transaction`}
                 </button>
                 {networkId === "arc-mainnet" && <span className="text-xs text-amber-700">Mainnet: this moves real USDC.</span>}

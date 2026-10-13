@@ -17,5 +17,5 @@
       "@tieout/recon": ["packages/recon/src/index.ts"]
     }
   },
-  "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "scripts/**/*.ts"]
+  "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "scripts/**/*.ts", "apps/web/test/**/*.ts"]
 }

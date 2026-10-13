@@ -83,7 +83,7 @@ export default function Verify() {
         lead={<>No transaction hash needed. Arc indexes <code className="font-mono text-xs">memoId</code> on every Memo event, so an auditor holding only the ledger's <code className="font-mono text-xs">EndToEndId</code> can ask the chain directly whether, when and how it was paid.</>}
       />
 
-      <section className="card grid gap-4 p-5 md:grid-cols-12">
+      <form className="card grid gap-4 p-5 md:grid-cols-12" onSubmit={(e) => { e.preventDefault(); if (!running) void run(); }}>
         <div className="md:col-span-3">
           <span className="label">Network</span>
           <select className="input" value={networkId} onChange={(e) => { setNetworkId(e.target.value as NetworkId); setResults(null); }}>
@@ -103,11 +103,11 @@ export default function Verify() {
           <input className="input font-mono" placeholder="latest" value={toBlock} onChange={(e) => setToBlock(e.target.value.trim())} />
         </div>
         <div className="md:col-span-12 flex flex-wrap items-center gap-3">
-          <button className="btn-primary" disabled={running} onClick={run}>{running ? `Querying Arc… ${progress}%` : "Look up"}</button>
+          <button type="submit" className="btn-primary" disabled={running}>{running ? `Querying Arc… ${progress}%` : "Look up"}</button>
           {DEMOS.map((d) => {
             const l = demo[d.id];
             return l ? (
-              <button key={d.id} className="btn-secondary" onClick={() => applyDemoPayment(l)}>Use a demo payment · {NETWORKS[d.id].name}</button>
+              <button key={d.id} type="button" className="btn-secondary" onClick={() => applyDemoPayment(l)}>Use a demo payment · {NETWORKS[d.id].name}</button>
             ) : null;
           })}
           {memoId && (
@@ -116,7 +116,7 @@ export default function Verify() {
             </span>
           )}
         </div>
-      </section>
+      </form>
 
       {error && <Notice tone="error">{error}</Notice>}
 

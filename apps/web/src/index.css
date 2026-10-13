@@ -87,3 +87,24 @@ body {
 @utility hairline {
   @apply border-t border-slate-200/80;
 }
+
+@media print {
+  header,
+  footer,
+  nav,
+  button,
+  input[type="file"] {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .card {
+    box-shadow: none;
+    break-inside: avoid;
+  }
+  main {
+    padding: 0;
+    max-width: none;
+  }
+}
