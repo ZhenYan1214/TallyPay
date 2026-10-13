@@ -1,0 +1,299 @@
+{
+  "version": 1,
+  "takenAt": "2026-10-13T05:53:57.862Z",
+  "activity": {
+    "network": "arc-testnet",
+    "account": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+    "fromBlock": "66928252",
+    "toBlock": "66928265",
+    "transfers": [
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 26,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0xD4546dE874C7a4fEb0bAA5778E948023D457530F",
+        "amount": "184000",
+        "memo": {
+          "memoId": "0xd50ac81661a02f201c3da8ffbbfc8fc04c11588257279f0c792e52d8de23a905",
+          "memoIndex": "787345",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S01",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S01"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 30,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x335ed8C89cdA05089142b1879dAC656799fC91FA",
+        "amount": "97000",
+        "memo": {
+          "memoId": "0x9f5275a420d0333948ffd6fedf53f4fc99dd0589a98bd88df3efe5a4304de38a",
+          "memoIndex": "787346",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S02",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S02"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 34,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x3F16e752B3BE358eEC5D730000d95188f3378878",
+        "amount": "215000",
+        "memo": {
+          "memoId": "0xaca1d762f6f8cd10b862f42fed0ac4cf511561a07219b3138802eefcf217d9c1",
+          "memoIndex": "787347",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S03",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S03"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 38,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x031539905A942E3304755B38FAc0Ef3e8368ab45",
+        "amount": "150000",
+        "memo": {
+          "memoId": "0x43f6d7cfe429d9eb25ef7ceee574260fad22032a8a80c2ea9c11d17550d5c423",
+          "memoIndex": "787348",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S04",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S04"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 42,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0xd0b8c10BF01be90BA9663561a9083584Dbc50dF0",
+        "amount": "62000",
+        "memo": {
+          "memoId": "0xd810f4e01cec1fd06ce1b59fd8d46e06312af75fd5d0ef3c6ecca17defe4995a",
+          "memoIndex": "787349",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S05",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S05"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 46,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x3EcAE063Ee464F20b5C39FFB8165612A265a28e7",
+        "amount": "131000",
+        "memo": {
+          "memoId": "0x9d2dd5c49c909065548c20a8b879b39a9e68c261e795a7a48363c046eb12458f",
+          "memoIndex": "787350",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S06",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S06"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 50,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x5d66BE4259Aa7f53B1a7D5264d832Aad13149a37",
+        "amount": "109000",
+        "memo": {
+          "memoId": "0xa47e550fa5b031828a973710d740d09feadff8f66109c9b0ef8fbe83124171ba",
+          "memoIndex": "787351",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S08",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S08"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 54,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x9Daf964539FAa522B5520d776272435a1caD1162",
+        "amount": "243000",
+        "memo": {
+          "memoId": "0xee2fcb7e0db8bdc5be50f13bc912543ff1dff195e1a77f5b595f501a201c3f65",
+          "memoIndex": "787352",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S09",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S09"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 58,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x3595a97820A3bd55F66F6649621E60924D6AFB54",
+        "amount": "56000",
+        "memo": {
+          "memoId": "0x8a39f7fe665cd8a2c0d5d8ab81b298819cf29e69bf879bb5119c0dd51b25a95d",
+          "memoIndex": "787353",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S10",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S10"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "logIndex": 62,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0xC90cCd38eEF7C1cF3E2Aa97B47FEc1A444e2783A",
+        "amount": "120000",
+        "memo": {
+          "memoId": "0xe07062fa631f944b1ceb85ad6e951dea03a4f4f42d4d0e019622f0b27550469b",
+          "memoIndex": "787354",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-ELLE-S11",
+              "PmtInfId": "PB-202610-ELLE",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S11"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x0a956504ca24596100442f995ab573775df9eda6222d1dd92f5167da6e19a677",
+        "blockNumber": "66928263",
+        "timestamp": 1791863741,
+        "logIndex": 15,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x9019Cd7dB7fF3B0e930d1b2AaeCF34cFdeFcE8E0",
+        "amount": "78000"
+      },
+      {
+        "txHash": "0x555e713a9e2862ae1e40cf36d6e96f244d46d46d5fcc83059dbf446b65d509b6",
+        "blockNumber": "66928265",
+        "timestamp": 1791863742,
+        "logIndex": 27,
+        "token": "USDC",
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "to": "0x6dd937B2f99db5342B8C760C686f9A4546514464",
+        "amount": "45000"
+      }
+    ],
+    "anchors": [
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "sender": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "anchor": {
+          "PmtInfId": "PB-202610-ELLE",
+          "NbOfTxs": 10,
+          "CtrlSum": "1.367",
+          "LedgerHash": "0x4c6ca3c4bf806d11ce6daf770eec1b4a13c7be8eba104d084d5bb1c9acfcc16c"
+        }
+      }
+    ],
+    "fees": [
+      {
+        "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+        "blockNumber": "66928254",
+        "timestamp": 1791863737,
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "feeWei": "13495146000000000"
+      },
+      {
+        "txHash": "0x0a956504ca24596100442f995ab573775df9eda6222d1dd92f5167da6e19a677",
+        "blockNumber": "66928263",
+        "timestamp": 1791863741,
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "feeWei": "1552950000000000"
+      },
+      {
+        "txHash": "0x555e713a9e2862ae1e40cf36d6e96f244d46d46d5fcc83059dbf446b65d509b6",
+        "blockNumber": "66928265",
+        "timestamp": 1791863742,
+        "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+        "feeWei": "1552698000000000"
+      }
+    ]
+  }
+}
