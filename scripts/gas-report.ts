@@ -10,7 +10,7 @@
  */
 import { readFileSync } from "node:fs";
 import { decodeEventLog, formatUnits, type Hex } from "viem";
-import { NETWORKS, memoEvent, transferEvent, type PayoutRunLedger } from "@tieout/sdk";
+import { NETWORKS, decodeMemo, memoEvent, transferEvent, type PayoutRunLedger } from "@tieout/sdk";
 import { clients, resolveNetwork } from "./env.js";
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
@@ -46,6 +46,7 @@ for (const hash of hashes) {
   let payments = 0;
   let memos = 0;
   let anchors = 0;
+  let references = 0;
   for (const log of receipt.logs) {
     const address = log.address.toLowerCase();
     try {
@@ -53,8 +54,10 @@ for (const hash of hashes) {
         const { args } = decodeEventLog({ abi: [transferEvent], data: log.data, topics: log.topics });
         if ((args as { value: bigint }).value > 0n) payments += 1;
       } else if (address === network.contracts.memo.toLowerCase()) {
-        decodeEventLog({ abi: [memoEvent], data: log.data, topics: log.topics });
-        memos += 1;
+        const { args } = decodeEventLog({ abi: [memoEvent], data: log.data, topics: log.topics });
+        const kind = decodeMemo((args as { memo: Hex }).memo).kind;
+        if (kind === "reference") references += 1;
+        else memos += 1;
       }
     } catch {
       // Not one of ours (BeforeMemo, EIP-7708 emitter, etc.).
@@ -63,7 +66,14 @@ for (const hash of hashes) {
   // An anchor is a memo with no positive-value transfer under it.
   anchors = Math.max(0, memos - payments);
   const feeWei = receipt.gasUsed * receipt.effectiveGasPrice;
-  const kind = memos === 0 ? "plain transfer" : anchors > 0 ? `batch, ${payments} memo payments + anchor` : `${payments} memo payment${payments === 1 ? "" : "s"}`;
+  const kind =
+    references > 0 && memos === 0
+      ? `${references} reference${references === 1 ? "" : "s"} published`
+      : memos === 0
+        ? "plain transfer"
+        : anchors > 0
+          ? `batch, ${payments} memo payments + anchor`
+          : `${payments} memo payment${payments === 1 ? "" : "s"}`;
   rows.push({
     tx: hash,
     kind,

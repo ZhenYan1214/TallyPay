@@ -35,7 +35,7 @@ if (report.ignoredIncoming.count) console.log(`\n${report.ignoredIncoming.count}
 for (const b of report.rollForward ?? []) {
   if (b.opening === 0n && b.closing === 0n && b.inflow === 0n && b.outflow === 0n) continue;
   console.log(
-    `\nRoll-forward ${b.token}: opening ${fromUnits(b.opening)} + in ${fromUnits(b.inflow)} - out ${fromUnits(b.outflow)} - fees ${fromUnits(b.fees)} = ${fromUnits(b.expectedClosing)} · on-chain ${fromUnits(b.closing)} · unexplained ${fromUnits(b.unexplained)}`,
+    `\nRoll-forward ${b.token}: opening ${fromUnits(b.opening)} + in ${fromUnits(b.inflow)} - out ${fromUnits(b.outflow)} - fees ${fromUnits(b.fees)} = ${fromUnits(b.expectedClosing)} · on-chain ${fromUnits(b.closing)} · unexplained ${b.unexplainedWei !== undefined ? formatUnits(b.unexplainedWei, 18) + " (exact to the wei)" : fromUnits(b.unexplained)}`,
   );
 }
 for (const a of report.anchors) console.log(`\nAnchor ${a.PmtInfId}: ${a.status} ${a.notes.join("; ")}`);

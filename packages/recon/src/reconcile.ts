@@ -90,8 +90,10 @@ export interface BalanceRollForward {
   fees: bigint;
   expectedClosing: bigint;
   closing: bigint;
-  /** closing - expectedClosing. Zero means every movement is explained. */
+  /** closing - expectedClosing in 6-decimal units. Zero means every movement is explained. */
   unexplained: bigint;
+  /** USDC only, when the scan read native balances: the same difference exact to the wei. */
+  unexplainedWei?: bigint;
 }
 
 export interface LedgerRun {
@@ -422,10 +424,20 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
   }
 
   const feesWei = activity.fees.reduce((s, f) => s + f.feeWei, 0n);
-  const rollForward = activity.balances?.map((b) => {
-    const inflow = incomingAll.filter((t) => t.token === b.token).reduce((s, t) => s + t.amount, 0n);
-    const outflow = outgoing.filter((t) => t.token === b.token).reduce((s, t) => s + t.amount, 0n);
+  const rollForward = activity.balances?.map((b): BalanceRollForward => {
+    const ins = incomingAll.filter((t) => t.token === b.token);
+    const outs = outgoing.filter((t) => t.token === b.token);
+    const inflow = ins.reduce((s, t) => s + t.amount, 0n);
+    const outflow = outs.reduce((s, t) => s + t.amount, 0n);
     const fees = b.token === "USDC" ? feesWei / NATIVE_TO_UNITS : 0n;
+    if (b.token === "USDC" && b.openingWei !== undefined && b.closingWei !== undefined) {
+      // Exact in wei: ERC-20 amounts are whole micro-dollars, native sends keep their 18-decimal value, fees are wei.
+      const wei = (t: TransferObservation) => t.amountWei ?? t.amount * NATIVE_TO_UNITS;
+      const expectedWei = b.openingWei + ins.reduce((s, t) => s + wei(t), 0n) - outs.reduce((s, t) => s + wei(t), 0n) - feesWei;
+      const unexplainedWei = b.closingWei - expectedWei;
+      const floorDiv = (x: bigint) => (x < 0n ? -((-x) / NATIVE_TO_UNITS) : x / NATIVE_TO_UNITS);
+      return { token: b.token, opening: b.opening, inflow, outflow, fees, expectedClosing: expectedWei / NATIVE_TO_UNITS, closing: b.closing, unexplained: floorDiv(unexplainedWei), unexplainedWei };
+    }
     const expectedClosing = b.opening + inflow - outflow - fees;
     return { token: b.token, opening: b.opening, inflow, outflow, fees, expectedClosing, closing: b.closing, unexplained: b.closing - expectedClosing };
   });

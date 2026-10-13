@@ -158,3 +158,23 @@ describe("camt amounts", () => {
     expect(xml).toContain("<TtlCdtNtries><NbOfNtries>1</NbOfNtries><Sum>0.12346</Sum></TtlCdtNtries>");
   });
 });
+
+
+describe("roll-forward exact to the wei", () => {
+  it("does not show one-unit dust when fees have more decimals than balances", () => {
+    const E12 = 10n ** 12n;
+    const ledger: PayoutInstruction[] = [{ EndToEndId: "A", recipient: addr(1), amount: "1.00", token: "USDC" }];
+    const openingWei = toUnits("5") * E12;
+    const feeWei = 18_343_794_000_000_000n; // 0.018343794 USDC: floors to 0.018343 in 6 decimals
+    const closingWei = openingWei - toUnits("1") * E12 - feeWei;
+    const act = activity([transfer(ME, addr(1), "1.00", { memo: "A" })], [
+      { token: "USDC", opening: openingWei / E12, closing: closingWei / E12, openingWei, closingWei },
+    ]);
+    act.fees = [{ txHash: tx(1), blockNumber: 100n, timestamp: 1_760_000_000, from: ME, feeWei }];
+    const r = reconcile([{ PmtInfId: "R", instructions: ledger }], act);
+    const b = r.rollForward![0]!;
+    expect(b.unexplainedWei).toBe(0n);
+    expect(b.unexplained).toBe(0n);
+    expect(b.closing).toBe(closingWei / E12);
+  });
+});

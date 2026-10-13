@@ -9,6 +9,7 @@ import {
   encodeReferenceMemo,
   encodeRunAnchor,
   findMemos,
+  memoEvent,
   observeAccount,
   paymentMemoId,
   runAnchorMemoId,
@@ -52,14 +53,15 @@ function transferLog(address: Address, txHash: Hex, block: bigint, logIndex: num
 }
 
 function memoLog(txHash: Hex, block: bigint, logIndex: number, sender: Address, target: Address, callData: Hex, memoId: Hex, memo: Hex): FakeLog {
+  const callDataHash = keccak256(callData);
   return {
     address: MEMO,
     transactionHash: txHash,
     blockNumber: block,
     logIndex,
-    args: { sender, target, callDataHash: keccak256(callData), memoId, memo, memoIndex: BigInt(logIndex) },
-    topics: [],
-    data: "0x",
+    args: { sender, target, callDataHash, memoId, memo, memoIndex: BigInt(logIndex) },
+    topics: encodeEventTopics({ abi: [memoEvent], eventName: "Memo", args: { sender, target, memoId } }) as Hex[],
+    data: encodeAbiParameters([{ type: "bytes32" }, { type: "bytes" }, { type: "uint256" }], [callDataHash, memo, BigInt(logIndex)]),
   };
 }
 
@@ -94,6 +96,11 @@ function fakeClient(logs: FakeLog[], opts: { latest?: bigint; balances?: Record<
       const key = `${address.toLowerCase()}:${args[0].toLowerCase()}:${blockNumber}`;
       if (opts.balances && key in opts.balances) return opts.balances[key]!;
       return 0n;
+    },
+    // Native USDC balance = ERC-20 balance in 18 decimals, as on Arc.
+    getBalance: async ({ address, blockNumber }: { address: Address; blockNumber: bigint }) => {
+      const key = `${USDC.toLowerCase()}:${address.toLowerCase()}:${blockNumber}`;
+      return (opts.balances && key in opts.balances ? opts.balances[key]! : 0n) * E12;
     },
   };
   return client as unknown as PublicClient;
@@ -147,12 +154,15 @@ describe("observeAccount", () => {
 
     // Fees: tx 1, 2, 3 were sent by ME; tx 4 by OPS and tx 5 by A are not ME's fees.
     expect(a.fees.map((f) => f.txHash).sort()).toEqual([tx(1), tx(2), tx(3)]);
-    expect(a.balances?.find((b) => b.token === "USDC")).toEqual({ token: "USDC", opening: 50_000_000n, closing: 31_500_000n });
+    expect(a.balances?.find((b) => b.token === "USDC")).toEqual({ token: "USDC", opening: 50_000_000n, closing: 31_500_000n, openingWei: 50_000_000n * E12, closingWei: 31_500_000n * E12 });
   });
 
   it("skips balances gracefully when the RPC has no historical state", async () => {
     const client = fakeClient(logs);
-    (client as unknown as { readContract: () => Promise<never> }).readContract = async () => {
+    (client as unknown as { readContract: () => Promise<never>; getBalance: () => Promise<never> }).readContract = async () => {
+      throw new Error("missing trie node");
+    };
+    (client as unknown as { getBalance: () => Promise<never> }).getBalance = async () => {
       throw new Error("missing trie node");
     };
     const a = await observeAccount({ client, network: ARC_TESTNET, account: ME, fromBlock: 10n, toBlock: 20n });
@@ -193,5 +203,18 @@ describe("blockAtTimestamp", () => {
     const r = await blockRangeForDates(client, "2023-11-14", "2023-11-14");
     expect(r).toEqual({ fromBlock: 0n, toBlock: 1_000n });
     await expect(blockRangeForDates(client, "2023-11-15", "2023-11-14")).rejects.toThrow(/From date/);
+  });
+});
+
+
+describe("observeAccount: memos written by the counterparty", () => {
+  it("links a memo on an incoming payment even though the account did not sign it", async () => {
+    const memo = encodePaymentMemo({ EndToEndId: "INV-1", PmtInfId: "INV" });
+    const logs = [...erc20Transfer(tx(8), 30n, 0, A, ME, 500_000n), memoLog(tx(8), 30n, 2, A, USDC, transferCallData(ME, 500_000n), paymentMemoId("INV-1"), memo)];
+    const client = fakeClient(logs, { senders: { [tx(8)]: A } });
+    const a = await observeAccount({ client, network: ARC_TESTNET, account: ME, fromBlock: 25n, toBlock: 40n });
+    const incoming = a.transfers.find((t) => t.txHash === tx(8))!;
+    expect(incoming.memo?.decoded).toMatchObject({ kind: "payment", memo: { EndToEndId: "INV-1" } });
+    expect(a.fees).toHaveLength(0); // the counterparty paid that fee, not the account
   });
 });

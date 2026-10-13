@@ -1,4 +1,4 @@
-import { getAddress, keccak256, type Address, type Hex, type PublicClient } from "viem";
+import { decodeEventLog, getAddress, keccak256, type Address, type Hex, type PublicClient } from "viem";
 import { erc20Abi, memoEvent, transferEvent } from "./abis.js";
 import { transferCallData } from "./batch.js";
 import { decodeMemo, type DecodedMemo, type ReferenceMemo, type RunAnchor } from "./memo.js";
@@ -67,6 +67,13 @@ export interface BalanceObservation {
   opening: bigint;
   /** Balance at toBlock, in 6-decimal units. */
   closing: bigint;
+  /**
+   * USDC only: the exact 18-decimal native balances. Fees are charged in
+   * 18 decimals, so a roll-forward in 6 decimals can be off by one unit;
+   * in wei it is exact.
+   */
+  openingWei?: bigint;
+  closingWei?: bigint;
 }
 
 export interface AccountActivity {
@@ -282,6 +289,41 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
     });
   }
 
+  // Memos on money coming in are written by the counterparty, so the
+  // sender-filtered scan above did not see them. Read them from the receipts
+  // of incoming ERC-20 transfers that have no memo yet.
+  const memoAddress = network.contracts.memo.toLowerCase();
+  const incomingTxs = [...new Set(transfers.filter((t) => t.to === account && t.from !== account && !t.memo && !t.native).map((t) => t.txHash))];
+  for (let i = 0; i < incomingTxs.length; i += PARALLEL) {
+    const slice = incomingTxs.slice(i, i + PARALLEL);
+    const receipts = await Promise.all(slice.map((hash) => client.getTransactionReceipt({ hash })));
+    for (let j = 0; j < receipts.length; j++) {
+      const txHash = slice[j]!;
+      const memosInTx = receipts[j]!.logs
+        .filter((l) => l.address.toLowerCase() === memoAddress)
+        .flatMap((l) => {
+          try {
+            const { args } = decodeEventLog({ abi: [memoEvent], data: l.data, topics: l.topics as [Hex, ...Hex[]] });
+            return [{ logIndex: l.logIndex ?? -1, args: args as { sender: Address; target: Address; callDataHash: Hex; memoId: Hex; memo: Hex; memoIndex: bigint } }];
+          } catch {
+            return [];
+          }
+        });
+      if (memosInTx.length === 0) continue;
+      for (const t of transfers) {
+        if (t.txHash !== txHash || t.to !== account || t.memo) continue;
+        const tokenAddress = tokens.find(([symbol]) => symbol === t.token)![1].toLowerCase();
+        const expectedHash = keccak256(transferCallData(t.to, t.amount));
+        const match = memosInTx
+          .filter((m) => !usedMemos.has(`${txHash}:${m.logIndex}`) && m.args.target.toLowerCase() === tokenAddress && m.args.callDataHash === expectedHash && m.logIndex > t.logIndex)
+          .sort((a, b) => a.logIndex - b.logIndex)[0];
+        if (!match) continue;
+        usedMemos.add(`${txHash}:${match.logIndex}`);
+        t.memo = { memoId: match.args.memoId, memoIndex: match.args.memoIndex, decoded: decodeMemo(match.args.memo) };
+      }
+    }
+  }
+
   const anchors: AnchorObservation[] = [];
   const references: ReferenceObservation[] = [];
   for (const log of memoLogs) {
@@ -335,7 +377,15 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
     try {
       const openingBlock = options.fromBlock > 0n ? options.fromBlock - 1n : 0n;
       balances = await Promise.all(
-        tokens.map(async ([token, address]) => {
+        tokens.map(async ([token, address]): Promise<BalanceObservation> => {
+          if (token === "USDC") {
+            // Native balance is the ERC-20 balance in 18 decimals; reading it keeps the roll-forward exact to the wei.
+            const [openingWei, closingWei] = await Promise.all([
+              client.getBalance({ address: account, blockNumber: openingBlock }),
+              client.getBalance({ address: account, blockNumber: toBlock }),
+            ]);
+            return { token, opening: openingWei / NATIVE_TO_UNITS, closing: closingWei / NATIVE_TO_UNITS, openingWei, closingWei };
+          }
           const read = (blockNumber: bigint) =>
             client.readContract({ address, abi: erc20Abi, functionName: "balanceOf", args: [account], blockNumber });
           const [opening, closing] = await Promise.all([read(openingBlock), read(toBlock)]);

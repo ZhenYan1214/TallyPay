@@ -51,7 +51,7 @@ export function serializeActivity(activity: AccountActivity, takenAt = new Date(
       anchors: activity.anchors.map((a) => ({ ...a, blockNumber: a.blockNumber.toString() })),
       references: (activity.references ?? []).map((r) => ({ ...r, blockNumber: r.blockNumber.toString() })),
       fees: activity.fees.map((f) => ({ ...f, blockNumber: f.blockNumber.toString(), feeWei: f.feeWei.toString() })),
-      balances: activity.balances?.map((b) => ({ ...b, opening: b.opening.toString(), closing: b.closing.toString() })),
+      balances: activity.balances?.map((b) => ({ ...b, opening: b.opening.toString(), closing: b.closing.toString(), openingWei: b.openingWei?.toString(), closingWei: b.closingWei?.toString() })),
     },
   };
   return JSON.stringify(out, null, 2) + "\n";
@@ -72,7 +72,13 @@ export function parseActivity(json: string): ActivitySnapshot {
       (x) => ({ ...x, txHash: x.txHash as Hex, sender: x.sender as Address, memoId: x.memoId as Hex, blockNumber: BigInt(x.blockNumber) }) as ReferenceObservation,
     ),
     fees: a.fees.map((x) => ({ ...x, txHash: x.txHash as Hex, from: x.from as Address, blockNumber: BigInt(x.blockNumber), feeWei: BigInt(x.feeWei) }) as FeeObservation),
-    balances: a.balances?.map((b) => ({ token: b.token, opening: BigInt(b.opening), closing: BigInt(b.closing) })),
+    balances: a.balances?.map((b) => ({
+      token: b.token,
+      opening: BigInt(b.opening),
+      closing: BigInt(b.closing),
+      openingWei: b.openingWei !== undefined ? BigInt(b.openingWei) : undefined,
+      closingWei: b.closingWei !== undefined ? BigInt(b.closingWei) : undefined,
+    })),
   };
   return { version: 1, takenAt: raw.takenAt, activity };
 }
