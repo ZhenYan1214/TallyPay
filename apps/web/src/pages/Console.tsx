@@ -559,6 +559,27 @@ function Results({
         </Notice>
       )}
 
+      <section className="ink-panel">
+        <div className="ink-grid absolute inset-0" aria-hidden />
+        <div className="relative flex flex-wrap items-end justify-between gap-4 px-6 py-5">
+          <div>
+            <div className="text-[10px] font-semibold tracking-[0.16em] text-white/50 uppercase">{statementMode ? "Statement" : "Reconciliation"} · {network.name}</div>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 font-mono text-sm text-white/85">
+              <ExternalLink href={addressUrl(network, activity.account)} className="text-white/85 decoration-white/30 hover:text-white">{activity.account}</ExternalLink>
+              <span className="text-white/40">·</span>
+              <span className="nums">blocks {activity.fromBlock.toString()}–{activity.toBlock.toString()}</span>
+            </div>
+          </div>
+          <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-white/60">
+            <span><span className="nums text-white">{activity.transfers.length}</span> transfers</span>
+            <span><span className="nums text-white">{activity.anchors.length}</span> anchor{activity.anchors.length === 1 ? "" : "s"}</span>
+            <span><span className="nums text-white">{activity.references.length}</span> reference{activity.references.length === 1 ? "" : "s"}</span>
+            <span><span className="nums text-white">{result.ledgers.length}</span> ledger{result.ledgers.length === 1 ? "" : "s"}</span>
+            <span>{source.kind === "live" ? "live scan" : "snapshot"} · {report.generatedAt.slice(0, 16).replace("T", " ")} UTC</span>
+          </div>
+        </div>
+      </section>
+
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Expected" value={fmt(fromUnits(s.expectedUnits))} hint={`${report.items.filter((i) => i.instruction).length} ledger entries · USDC`} />
         <Stat
@@ -644,12 +665,6 @@ function Results({
       )}
 
       {intentItems.length > 0 && <AttachReferences items={intentItems} networkId={result.networkId} onPublished={onReferencesPublished} />}
-
-      <div className="text-xs text-slate-500">
-        {source.kind === "live" ? "Scanned" : "Snapshot of"} blocks <span className="nums">{activity.fromBlock.toString()}–{activity.toBlock.toString()}</span> on {network.name} for{" "}
-        <Mono value={activity.account} href={addressUrl(network, activity.account)} /> ·{" "}
-        {activity.transfers.length} transfers · {activity.anchors.length} anchor{activity.anchors.length === 1 ? "" : "s"} · {activity.references.length} reference{activity.references.length === 1 ? "" : "s"}
-      </div>
 
       <div className="flex gap-1 border-b border-slate-200">
         {(["items", "journal", "export"] as Tab[]).map((t) => (

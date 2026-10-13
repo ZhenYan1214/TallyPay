@@ -107,10 +107,12 @@ export function Collapsible({ title, summary, defaultOpen = false, children }: {
 
 export function Stat({ label, value, hint, tone = "default" }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "default" | "good" | "warn" | "bad" }) {
   const toneClass = { default: "text-slate-900", good: "text-emerald-700", warn: "text-amber-700", bad: "text-rose-700" }[tone];
+  const bar = { default: "bg-slate-300", good: "bg-emerald-500", warn: "bg-amber-500", bad: "bg-rose-500" }[tone];
   return (
-    <div className="card p-4">
+    <div className="card relative overflow-hidden p-4 pl-5">
+      <span className={`absolute inset-y-3 left-0 w-1 rounded-r ${bar}`} aria-hidden />
       <div className="text-[11px] font-semibold tracking-[0.12em] text-slate-500 uppercase">{label}</div>
-      <div className={`nums mt-1.5 text-[26px] leading-none font-semibold tracking-tight ${toneClass}`}>{value}</div>
+      <div className={`display nums mt-1.5 text-[30px] leading-none ${toneClass}`}>{value}</div>
       {hint && <div className="mt-2 text-xs leading-relaxed text-slate-500">{hint}</div>}
     </div>
   );
