@@ -16,7 +16,7 @@ import {
   type PayoutInstruction,
   type PayoutRunPlan,
 } from "@tieout/sdk";
-import { ExternalLink, Notice, PageHeader } from "../components/ui.tsx";
+import { EmptyState, ExternalLink, Notice, PageHeader } from "../components/ui.tsx";
 import { ensureNetwork, injectedProvider, publicClientFor } from "../lib/chain.ts";
 import { download, instructionsToCsv, readLedgerFile, shortHash, type LoadedLedger } from "../lib/ledger-io.ts";
 
@@ -331,6 +331,15 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
               {priorRun.map((m) => <ExternalLink key={m.txHash} href={txUrl(network, m.txHash)} className="font-mono text-xs">{shortHash(m.txHash)}</ExternalLink>)}.
               Not sending again. Change the run id if this is genuinely a new run.
             </Notice>
+          )}
+
+          {instructions.length === 0 && (
+            <EmptyState
+              title="No payout ledger loaded"
+              body="Upload a CSV or JSON ledger with one row per payee. The run is previewed here before anything is signed, and every payment carries its EndToEndId as an on-chain memo."
+            >
+              <button className="btn-secondary" onClick={() => download("tieout-ledger-template.csv", instructionsToCsv(TEMPLATE))}>Download CSV template</button>
+            </EmptyState>
           )}
 
           {instructions.length > 0 && (

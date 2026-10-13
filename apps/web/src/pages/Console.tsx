@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState , type ReactNode } from "react";
 import { createWalletClient, custom, formatUnits, isAddress, type Address, type Hex } from "viem";
 import {
   MIN_MAX_FEE_PER_GAS,
@@ -123,6 +123,7 @@ export default function Console({
   const [result, setResult] = useState<Result | null>(null);
   const [tab, setTab] = useState<Tab>("items");
   const [filter, setFilter] = useState<Filter>("all");
+  const [editing, setEditing] = useState(false);
   const autoDemo = useRef(hashFlags().has("demo"));
 
   useEffect(() => {
@@ -285,6 +286,7 @@ export default function Console({
       setResult({ report, activity, journal, networkId: net, source, ledgers: ls, signers, decisions: [] });
       setTab("items");
       setFilter("all");
+      setEditing(false);
     } catch (e) {
       setError(friendly(e));
     } finally {
@@ -319,6 +321,13 @@ export default function Console({
         lead="Everything runs in your browser against a public Arc RPC. Your ledger never leaves this page. No ledger? Enter a wallet and get a statement with a balance roll-forward instead."
       />
 
+      {result && !editing && !running ? (
+        <RunSummary
+          result={result}
+          onChange={() => setEditing(true)}
+          onRerun={() => void run()}
+        />
+      ) : (
       <section className="card divide-y divide-slate-100">
         <div className="space-y-3 p-5">
           <div className="flex flex-wrap items-center gap-2">
@@ -404,12 +413,15 @@ export default function Console({
             </button>
             {running && <ProgressBar value={progress.pct} label={progress.stage} />}
             {!running && statementMode && isAddress(account) && <span className="text-xs text-slate-500">No ledger loaded: you will get every movement, the roll-forward and the exports.</span>}
+            {!running && result && editing && <button type="button" className="btn-ghost" onClick={() => setEditing(false)}>Cancel</button>}
           </div>
         </form>
       </section>
+      )}
 
       {error && <Notice tone="error">{error}</Notice>}
-      {ledgers[0]?.scenario && <ScenarioGuide ledger={ledgers[0]} />}
+      {ledgers[0]?.scenario && <ScenarioGuide ledger={ledgers[0]} defaultOpen={!result} key={result ? "after" : "before"} />}
+      {running && !result && <ResultsSkeleton />}
       {!result && !running && !error && (
         <EmptyState title="Nothing reconciled yet" body="Run the demo, upload a ledger, or paste a wallet address and ask for a statement.">
           {availableDemos?.[0] && (
@@ -438,7 +450,8 @@ export default function Console({
 }
 
 /** What a reviewer should expect to see in the PromptBazaar demo, with the real transactions behind each case. */
-function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
+function ScenarioGuide({ ledger, defaultOpen }: { ledger: LoadedLedger; defaultOpen: boolean }) {
+  const [open, setOpen] = useState(defaultOpen);
   const network = NETWORKS[ledger.network];
   const s = ledger.scenario ?? {};
   const rows: Array<{ what: string; expect: ReconStatus; link?: string; id?: string }> = [
@@ -455,15 +468,26 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
     ...(s.unrecordedIncomingTx ? [{ what: "Someone sent USDC to the treasury with a plain wallet send and no invoice", expect: "unexpected" as const, link: s.unrecordedIncomingTx }] : []),
   ];
   return (
-    <section className="card p-5">
-      <div className="flex flex-wrap items-baseline justify-between gap-2">
-        <h2 className="font-semibold">What this demo shows</h2>
-        <span className="text-xs text-slate-500">
-          PromptBazaar is a fictional marketplace. Every transaction below is a real {network.name} transaction from{" "}
-          <Mono value={ledger.payer} href={addressUrl(network, ledger.payer)} />.
+    <section className="card">
+      <button type="button" className="flex w-full flex-wrap items-center justify-between gap-2 px-5 py-4 text-left" onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        <span className="flex items-baseline gap-3">
+          <span className="text-[14px] font-semibold text-slate-900">What this demo shows</span>
+          <span className="text-[12.5px] text-slate-500">{rows.length} scenarios, all real {network.name} transactions</span>
         </span>
-      </div>
-      <ul className="mt-3 divide-y divide-slate-100 text-sm">
+        <span className="flex items-center gap-1.5 text-[12.5px] font-medium text-slate-600">
+          {open ? "Hide" : "Show"}
+          <svg className={`h-4 w-4 transition ${open ? "rotate-180" : ""}`} viewBox="0 0 20 20" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden>
+            <path d="M5 8l5 5 5-5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </span>
+      </button>
+      {open && (
+      <div className="border-t border-slate-200 px-5 pt-1 pb-4">
+      <p className="pt-3 text-[12.5px] text-slate-500">
+        PromptBazaar is a fictional marketplace. Every transaction below is a real {network.name} transaction from{" "}
+        <Mono value={ledger.payer} href={addressUrl(network, ledger.payer)} />.
+      </p>
+      <ul className="mt-2 divide-y divide-slate-100 text-sm">
         {rows.map((r) => (
           <li key={r.what} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
             <span className="text-slate-700">{r.what}{r.id ? <span className="ml-1.5 font-mono text-xs text-slate-500">{r.id}</span> : null}</span>
@@ -474,8 +498,102 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
           </li>
         ))}
       </ul>
+      </div>
+      )}
     </section>
   );
+}
+
+/** Compact header for a finished run: what was scanned, with ways to change it or run again. */
+function RunSummary({ result, onChange, onRerun }: { result: Result; onChange: () => void; onRerun: () => void }) {
+  const network = NETWORKS[result.networkId];
+  const { activity } = result;
+  const entries = result.ledgers.reduce((n, l) => n + l.instructions.length, 0);
+  const item = (label: string, value: ReactNode) => (
+    <div className="min-w-0">
+      <div className="text-[11.5px] text-slate-500">{label}</div>
+      <div className="mt-0.5 truncate text-[13.5px] font-medium text-slate-900">{value}</div>
+    </div>
+  );
+  return (
+    <section className="card flex flex-wrap items-center gap-x-8 gap-y-3 px-5 py-4">
+      {item(
+        result.ledgers.length ? "Ledger" : "Mode",
+        result.ledgers.length ? (
+          <>
+            {result.ledgers.map((l) => l.PmtInfId).join(", ")} <span className="font-normal text-slate-500">· {entries} entries</span>
+          </>
+        ) : (
+          "Wallet statement"
+        ),
+      )}
+      {item("Wallet", <Mono value={activity.account} href={addressUrl(network, activity.account)} />)}
+      {item("Network", network.name)}
+      {item(
+        "Blocks",
+        <span className="nums font-mono text-[12.5px]">
+          {activity.fromBlock.toLocaleString("en-US")} → {activity.toBlock.toLocaleString("en-US")}
+        </span>,
+      )}
+      {item(
+        "Source",
+        result.source.kind === "live" ? (
+          <span className="inline-flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+            Live scan
+          </span>
+        ) : (
+          "Saved snapshot"
+        ),
+      )}
+      <div className="ml-auto flex gap-2">
+        <button className="btn-secondary" onClick={onChange}>Change</button>
+        <button className="btn-primary" onClick={onRerun}>Run again</button>
+      </div>
+    </section>
+  );
+}
+
+/** Placeholder with the shape of the results while the chain is scanned. */
+function ResultsSkeleton() {
+  const bar = "animate-pulse rounded bg-slate-200";
+  return (
+    <div className="space-y-6" aria-busy="true" aria-label="Scanning Arc">
+      <div className="grid gap-px overflow-hidden rounded-[10px] border border-slate-200 bg-slate-200 sm:grid-cols-2 lg:grid-cols-5">
+        {Array.from({ length: 5 }, (_, i) => (
+          <div key={i} className="space-y-3 bg-white p-5">
+            <div className={`h-3 w-20 ${bar}`} />
+            <div className={`h-6 w-24 ${bar}`} />
+            <div className={`h-3 w-32 ${bar}`} />
+          </div>
+        ))}
+      </div>
+      <div className="card overflow-hidden">
+        <div className="h-10 border-b border-slate-200 bg-slate-50/70" />
+        {Array.from({ length: 6 }, (_, i) => (
+          <div key={i} className="flex items-center gap-6 border-b border-slate-100 px-4 py-4 last:border-0">
+            <div className={`h-5 w-20 ${bar}`} />
+            <div className={`h-3 w-40 ${bar}`} />
+            <div className={`h-3 w-28 ${bar}`} />
+            <div className={`ml-auto h-3 w-16 ${bar}`} />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** Notes with long addresses and hashes shortened the same way as the table columns. */
+function NoteText({ text }: { text: string }) {
+  const parts = text.split(/(0x[0-9a-fA-F]{40,64})/g);
+  return <>{parts.map((p, i) => (/^0x[0-9a-fA-F]{40,64}$/.test(p) ? <Mono key={i} value={p} /> : <span key={i}>{p}</span>))}</>;
+}
+
+/** Six decimals, so a column of USDC amounts lines up on the decimal point. */
+function amt6(v: string): string {
+  const neg = v.startsWith("-");
+  const [whole = "0", frac = ""] = v.replace("-", "").split(".");
+  return `${neg ? "−" : ""}${whole.replace(/\B(?=(\d{3})+(?!\d))/g, ",")}.${(frac + "000000").slice(0, 6)}`;
 }
 
 /** Everything needed to re-run and re-check this reconciliation later, in one file. */
@@ -603,12 +721,12 @@ function Results({
                   return (
                     <tr key={b.token}>
                       <td className="py-2.5 pr-3 font-medium">{b.token}</td>
-                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.opening))}</td>
-                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.inflow))}</td>
-                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.outflow))}</td>
-                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.fees))}</td>
-                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.expectedClosing))}</td>
-                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.closing))}</td>
+                      <td className="py-2.5 px-3 text-right">{amt6(fromUnits(b.opening))}</td>
+                      <td className="py-2.5 px-3 text-right">{amt6(fromUnits(b.inflow))}</td>
+                      <td className="py-2.5 px-3 text-right">{amt6(fromUnits(b.outflow))}</td>
+                      <td className="py-2.5 px-3 text-right">{amt6(fromUnits(b.fees))}</td>
+                      <td className="py-2.5 px-3 text-right">{amt6(fromUnits(b.expectedClosing))}</td>
+                      <td className="py-2.5 px-3 text-right">{amt6(fromUnits(b.closing))}</td>
                       <td className={`py-2.5 pl-3 text-right font-semibold ${ok ? "text-emerald-700" : "text-rose-700"}`}>
                         {ok ? "0 · fully explained" : b.unexplainedWei !== undefined ? fmt(formatUnits(b.unexplainedWei, 18), 18) : fmt(fromUnits(b.unexplained))}
                       </td>
@@ -712,8 +830,8 @@ function Results({
                         {item.instruction?.payeeName ?? <span className="text-slate-400">Unknown</span>}
                         <div className="mt-0.5"><Mono value={((item.direction === "in" ? (t?.from ?? item.instruction?.payer) : (t?.to ?? item.instruction?.recipient)) ?? "")} /></div>
                       </td>
-                      <td className="nums px-4 py-3 text-right align-top font-mono text-[12.5px] whitespace-nowrap text-slate-800">{item.instruction ? fmt(item.instruction.amount) : "—"}</td>
-                      <td className="nums px-4 py-3 text-right align-top font-mono text-[12.5px] whitespace-nowrap text-slate-800">{t ? fmt(fromUnits(t.amount)) : "—"}</td>
+                      <td className="nums px-4 py-3 text-right align-top font-mono text-[12.5px] whitespace-nowrap text-slate-800">{item.instruction ? amt6(item.instruction.amount) : "—"}</td>
+                      <td className="nums px-4 py-3 text-right align-top font-mono text-[12.5px] whitespace-nowrap text-slate-800">{t ? amt6(fromUnits(t.amount)) : "—"}</td>
                       <td className="px-3 py-3 align-top whitespace-nowrap">
                         {t ? <Mono value={t.txHash} href={txUrl(network, t.txHash)} /> : item.candidates && item.instruction ? (
                           <div className="space-y-1.5">
@@ -731,7 +849,7 @@ function Results({
                           </div>
                         ) : "—"}
                       </td>
-                      <td className="px-3 py-3 align-top text-[12.5px] leading-relaxed text-slate-600">{item.notes.join("; ")}</td>
+                      <td className="px-3 py-3 align-top text-[12.5px] leading-relaxed text-slate-600"><NoteText text={item.notes.join("; ")} /></td>
                     </tr>
                   );
                 })}

@@ -1,9 +1,29 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import Overview from "./pages/Overview.tsx";
-import Console from "./pages/Console.tsx";
-import Pay from "./pages/Pay.tsx";
-import Verify from "./pages/Verify.tsx";
+import { NetworkStatus } from "./components/NetworkStatus.tsx";
 import type { LoadedLedger } from "./lib/ledger-io.ts";
+
+// The working pages carry the chain client; load them only when visited so the landing page stays light.
+const Console = lazy(() => import("./pages/Console.tsx"));
+const Pay = lazy(() => import("./pages/Pay.tsx"));
+const Verify = lazy(() => import("./pages/Verify.tsx"));
+
+const TITLES: Record<string, string> = {
+  overview: "Tieout · Reconciliation for USDC on Arc",
+  console: "Reconcile · Tieout",
+  verify: "Verify a payment · Tieout",
+  pay: "Pay a run · Tieout",
+};
+
+function PageFallback() {
+  return (
+    <div className="space-y-4" aria-busy="true" aria-label="Loading">
+      <div className="h-4 w-32 animate-pulse rounded bg-slate-200" />
+      <div className="h-8 w-80 max-w-full animate-pulse rounded bg-slate-200" />
+      <div className="h-40 animate-pulse rounded-[10px] bg-slate-200/70" />
+    </div>
+  );
+}
 
 export type Route = "overview" | "console" | "verify" | "pay";
 
@@ -44,6 +64,7 @@ export default function App() {
 
   useEffect(() => {
     window.scrollTo(0, 0);
+    document.title = TITLES[route] ?? TITLES.overview!;
   }, [route]);
 
   // The reconcile view is a wide data table; everything else reads better at a narrower measure.
@@ -71,26 +92,31 @@ export default function App() {
               </button>
             ))}
           </nav>
+          <div className="flex shrink-0 items-center gap-1">
+          <NetworkStatus />
           <a href={REPO_URL} target="_blank" rel="noreferrer" className="btn-ghost hidden text-xs sm:inline-flex" aria-label="Source on GitHub">
             <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
               <path d="M12 .5a12 12 0 00-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.9 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 016 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0012 .5z" />
             </svg>
             GitHub
           </a>
+          </div>
         </div>
       </header>
 
       <main className={`mx-auto w-full ${width} flex-1 px-4 py-8 sm:px-6 sm:py-10`}>
         {route === "overview" && <Overview />}
-        {route === "console" && <Console handoff={handoff} onHandoffUsed={() => setHandoff(null)} />}
-        {route === "verify" && <Verify />}
-        {route === "pay" &&
-          <Pay
-            onReconcile={(ledger) => {
-              setHandoff({ ledger, autorun: true });
-              navigate("console");
-            }}
-          />}
+        <Suspense fallback={<PageFallback />}>
+          {route === "console" && <Console handoff={handoff} onHandoffUsed={() => setHandoff(null)} />}
+          {route === "verify" && <Verify />}
+          {route === "pay" &&
+            <Pay
+              onReconcile={(ledger) => {
+                setHandoff({ ledger, autorun: true });
+                navigate("console");
+              }}
+            />}
+        </Suspense>
       </main>
 
       <footer className="mt-16 border-t border-slate-200 bg-white">
