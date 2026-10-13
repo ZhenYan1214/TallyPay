@@ -10,7 +10,8 @@ export async function blockAtTimestamp(client: PublicClient, timestampSeconds: n
   let hi = latest ?? (await client.getBlockNumber());
   let lo = 0n;
   const tsOf = async (n: bigint) => Number((await client.getBlock({ blockNumber: n })).timestamp);
-  if ((await tsOf(hi)) < timestampSeconds) return hi;
+  // Tip is still before the timestamp: no such block exists yet. Callers treat latest + 1 as "beyond the tip".
+  if ((await tsOf(hi)) < timestampSeconds) return hi + 1n;
   while (lo < hi) {
     const mid = (lo + hi) / 2n;
     if ((await tsOf(mid)) < timestampSeconds) lo = mid + 1n;
@@ -19,7 +20,7 @@ export async function blockAtTimestamp(client: PublicClient, timestampSeconds: n
   return lo;
 }
 
-/** Block range covering two calendar dates (inclusive), interpreted as UTC. */
+/** Block range covering two calendar dates (inclusive), interpreted as UTC. A to-date still in progress ends at the latest block. */
 export async function blockRangeForDates(client: PublicClient, fromDate: string, toDate: string): Promise<{ fromBlock: bigint; toBlock: bigint }> {
   const start = Date.parse(`${fromDate}T00:00:00Z`) / 1000;
   const end = Date.parse(`${toDate}T23:59:59Z`) / 1000;
@@ -27,7 +28,8 @@ export async function blockRangeForDates(client: PublicClient, fromDate: string,
   if (end < start) throw new Error("From date must not be after to date");
   const latest = await client.getBlockNumber();
   const fromBlock = await blockAtTimestamp(client, start, latest);
+  if (fromBlock > latest) throw new Error("From date is after the latest block");
   const firstAfter = await blockAtTimestamp(client, end + 1, latest);
-  const toBlock = firstAfter > fromBlock && firstAfter <= latest && firstAfter > 0n ? firstAfter - 1n : latest;
-  return { fromBlock, toBlock: toBlock < fromBlock ? fromBlock : toBlock };
+  const toBlock = firstAfter > latest ? latest : firstAfter > fromBlock ? firstAfter - 1n : fromBlock;
+  return { fromBlock, toBlock };
 }
