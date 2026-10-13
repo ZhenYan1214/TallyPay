@@ -16,14 +16,17 @@
     "demo": "tsx scripts/demo-scenario.ts",
     "reconcile": "tsx scripts/reconcile.ts",
     "testwallet": "tsx scripts/dev-test-wallet.ts",
-    "sweep": "tsx scripts/sweep-demo.ts"
+    "sweep": "tsx scripts/sweep-demo.ts",
+    "gas": "tsx scripts/gas-report.ts",
+    "snapshot": "tsx scripts/snapshot-demo.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
     "dotenv": "^16.4.5",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.8"
+    "vite": "^8.3.4",
+    "vitest": "^5.0.4"
   },
   "dependencies": {
     "viem": "^2.21.0"
