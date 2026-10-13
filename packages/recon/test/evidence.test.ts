@@ -49,7 +49,7 @@ describe("references published after the fact", () => {
     expect(one.reference?.sender).toBe(OPS);
     expect(one.transfer?.to).toBe(addr(1));
     expect(two).toMatchObject({ status: "matched", evidence: "reference" });
-    expect(r.summary.byEvidence).toEqual({ memo: 0, reference: 2, intent: 0 });
+    expect(r.summary.byEvidence).toEqual({ memo: 0, reference: 2, manual: 0, intent: 0 });
   });
 
   it("ignores references from untrusted signers", () => {
@@ -101,5 +101,42 @@ describe("ambiguity is never guessed", () => {
     // One transfer, two entries that both fit it: ambiguous for both, transfer held.
     expect(r.items.filter((i) => i.status === "ambiguous" && i.instruction)).toHaveLength(2);
     expect(r.items.filter((i) => i.status === "missing")).toHaveLength(0);
+  });
+});
+
+describe("human decisions and statement mode", () => {
+  const ledger: PayoutInstruction[] = [
+    { EndToEndId: "A-1", recipient: addr(1), amount: "5.00", token: "USDC" },
+    { EndToEndId: "A-2", recipient: addr(1), amount: "5.00", token: "USDC" },
+  ];
+  const chain = [transfer(ME, addr(1), "5.00", { txn: 2 }), transfer(ME, addr(1), "5.00", { txn: 3 })];
+
+  it("settles an ambiguous pairing by recorded decision, then the rest resolves by intent", () => {
+    const first = chain[0]!;
+    const r = reconcile([{ PmtInfId: "R", instructions: ledger }], activity(chain), {
+      decisions: [{ EndToEndId: "A-2", txHash: first.txHash, logIndex: first.logIndex, note: "invoice date matches" }],
+    });
+    const a2 = r.items.find((i) => i.instruction?.EndToEndId === "A-2")!;
+    expect(a2).toMatchObject({ status: "matched", evidence: "manual" });
+    expect(a2.notes.at(-1)).toBe("Settled by hand: invoice date matches");
+    expect(r.items.find((i) => i.instruction?.EndToEndId === "A-1")).toMatchObject({ status: "matched_by_intent" });
+    expect(r.summary.ambiguous).toBe(0);
+    expect(r.summary.byEvidence.manual).toBe(1);
+  });
+
+  it("flags a wrong decision as a mismatch instead of accepting it silently", () => {
+    const wrong = transfer(ME, addr(9), "1.00", { txn: 4 });
+    const r = reconcile([{ PmtInfId: "R", instructions: ledger.slice(0, 1) }], activity([wrong]), {
+      decisions: [{ EndToEndId: "A-1", txHash: wrong.txHash, logIndex: wrong.logIndex }],
+    });
+    expect(r.items[0]).toMatchObject({ status: "mismatch", evidence: "manual" });
+  });
+
+  it("produces a statement when there is no ledger at all", () => {
+    const r = reconcile([], activity([...chain, transfer(addr(5), ME, "2.00", { txn: 7 })]), { incoming: "reconcile" });
+    expect(r.items.every((i) => i.status === "unexpected")).toBe(true);
+    expect(r.items.filter((i) => i.direction === "in")).toHaveLength(1);
+    expect(r.summary.exceptionUnits).toBe(toUnits("12"));
+    expect(buildJournal(r, [])).toHaveLength(3);
   });
 });

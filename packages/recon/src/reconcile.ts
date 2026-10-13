@@ -32,8 +32,17 @@ export type ReconStatus =
 
 export type Direction = "out" | "in";
 
-/** How strong the link between ledger entry and transfer is, strongest first. */
-export type Evidence = "memo" | "reference" | "intent";
+/** How strong the link between ledger entry and transfer is, strongest first. "manual" is a recorded human decision. */
+export type Evidence = "memo" | "reference" | "manual" | "intent";
+
+/** A person's decision to settle one ledger entry with one specific transfer. Recorded in the audit bundle. */
+export interface Decision {
+  EndToEndId: string;
+  txHash: Hex;
+  logIndex: number;
+  /** Free text: who decided and why. */
+  note?: string;
+}
 
 export interface ReconItem {
   status: ReconStatus;
@@ -129,6 +138,8 @@ export interface ReconcileOptions {
    * whoever the caller chose to read memos from).
    */
   trustedReferenceSigners?: Address[];
+  /** Human decisions for pairings the engine would not make on its own. Applied after references, before intent. */
+  decisions?: Decision[];
   now?: Date;
 }
 
@@ -167,6 +178,10 @@ type Entry = PayoutInstruction & { PmtInfId: string };
  * both directions. Anything with more than one plausible pairing is
  * reported as ambiguous and left for a person, never guessed.
  * Whatever is left becomes "missing" (ledger side) or "unexpected" (chain side).
+ *
+ * With no runs at all (statement mode) every transfer is "unexpected": the
+ * report is then a plain statement of the wallet with a roll-forward, still
+ * useful to book to suspense or to export as camt.054.
  */
 export function reconcile(runs: LedgerRun[], activity: AccountActivity, options: ReconcileOptions = {}): ReconReport {
   const account = getAddress(activity.account);
@@ -218,9 +233,10 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     }
     settled.add(entry.EndToEndId);
     const notes = compare(entry, transfer, memoRun);
+    const status: ReconStatus = notes.length ? "mismatch" : "matched";
     if (reference) notes.push(`Reference published after the fact by ${reference.sender} in ${reference.txHash}`);
     items.push({
-      status: notes.some((n) => !n.startsWith("Reference published")) ? "mismatch" : "matched",
+      status,
       direction,
       instruction: entry,
       transfer,
@@ -260,6 +276,15 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     if (!chosen) continue;
     usedRefs.add(chosen);
     settle(byId.get(chosen.reference.EndToEndId)!, transfer, "reference", chosen.reference.PmtInfId, chosen);
+  }
+
+  // Pass 2b: recorded human decisions. Compared field by field like everything else, so a wrong decision shows as a mismatch, never as silence.
+  for (const d of options.decisions ?? []) {
+    const entry = byId.get(d.EndToEndId);
+    const transfer = inScope.find((t) => t.txHash.toLowerCase() === d.txHash.toLowerCase() && t.logIndex === d.logIndex);
+    if (!entry || !transfer || claimed.has(transfer) || settled.has(entry.EndToEndId)) continue;
+    settle(entry, transfer, "manual", undefined);
+    items[items.length - 1]!.notes.push(d.note ? `Settled by hand: ${d.note}` : "Settled by hand");
   }
 
   // Pass 3: intent matching, unique in both directions.
@@ -367,7 +392,7 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     exceptionUnits: 0n,
     expectedInUnits: entries.filter((e) => e.direction === "in").reduce((s, e) => s + toUnits(e.amount), 0n),
     settledInUnits: 0n,
-    byEvidence: { memo: 0, reference: 0, intent: 0 },
+    byEvidence: { memo: 0, reference: 0, manual: 0, intent: 0 },
   };
   for (const item of items) {
     // Ambiguous transfers are counted through their entries, not twice.

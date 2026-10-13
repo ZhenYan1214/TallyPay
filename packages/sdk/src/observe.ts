@@ -111,6 +111,9 @@ function ranges(from: bigint, to: bigint): Array<[bigint, bigint]> {
   return out;
 }
 
+/** Requests in flight for per-block and per-receipt reads. Public RPCs 429 above roughly this. */
+const PARALLEL = 4;
+
 type RawLog = { address: Address; transactionHash: Hex | null; blockNumber: bigint | null; logIndex: number | null; args: unknown };
 
 /**
@@ -176,12 +179,21 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
     options.onProgress?.(done, toBlock - options.fromBlock + 1n);
   }
 
+  // Block timestamps: one request per distinct block, a few in flight at a time
+  // (with a batching transport these collapse into single JSON-RPC batches).
   const blockTimes = new Map<bigint, number>();
+  const distinctBlocks = [...new Set([...transferLogs.map((x) => x.log.blockNumber!), ...nativeLogs.map((l) => l.blockNumber!), ...memoLogs.map((l) => l.blockNumber!)])];
+  for (let i = 0; i < distinctBlocks.length; i += PARALLEL) {
+    await Promise.all(
+      distinctBlocks.slice(i, i + PARALLEL).map(async (n) => {
+        blockTimes.set(n, Number((await client.getBlock({ blockNumber: n })).timestamp));
+      }),
+    );
+  }
   async function timestampOf(blockNumber: bigint): Promise<number> {
     const cached = blockTimes.get(blockNumber);
     if (cached !== undefined) return cached;
-    const block = await client.getBlock({ blockNumber });
-    const ts = Number(block.timestamp);
+    const ts = Number((await client.getBlock({ blockNumber })).timestamp);
     blockTimes.set(blockNumber, ts);
     return ts;
   }
@@ -301,16 +313,21 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
   for (const a of anchors) if (a.sender === account) sentTxs.add(a.txHash);
   for (const r of references) if (r.sender === account) sentTxs.add(r.txHash);
   const fees: FeeObservation[] = [];
-  for (const txHash of sentTxs) {
-    const receipt = await client.getTransactionReceipt({ hash: txHash });
-    if (getAddress(receipt.from) !== account) continue;
-    fees.push({
-      txHash,
-      blockNumber: receipt.blockNumber,
-      timestamp: await timestampOf(receipt.blockNumber),
-      from: account,
-      feeWei: receipt.gasUsed * receipt.effectiveGasPrice,
-    });
+  const hashes = [...sentTxs];
+  for (let i = 0; i < hashes.length; i += PARALLEL) {
+    const slice = hashes.slice(i, i + PARALLEL);
+    const receipts = await Promise.all(slice.map((hash) => client.getTransactionReceipt({ hash })));
+    for (let j = 0; j < receipts.length; j++) {
+      const receipt = receipts[j]!;
+      if (getAddress(receipt.from) !== account) continue;
+      fees.push({
+        txHash: slice[j]!,
+        blockNumber: receipt.blockNumber,
+        timestamp: await timestampOf(receipt.blockNumber),
+        from: account,
+        feeWei: receipt.gasUsed * receipt.effectiveGasPrice,
+      });
+    }
   }
 
   let balances: BalanceObservation[] | undefined;
