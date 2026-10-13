@@ -4,45 +4,29 @@ import type { ReconStatus } from "@tieout/recon";
 
 const MAINNET_BATCH = "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e";
 
-const STEPS = [
-  {
-    title: "Tag",
-    body: "Each payment carries an ISO 20022-style memo (EndToEndId, PmtInfId, purpose, reference) through Arc's native Memo contract. Identifiers only, never personal data.",
-  },
-  {
-    title: "Batch and anchor",
-    body: "A whole payout run goes out in one transaction via Arc's Multicall3From. The first call anchors a hash of the ledger, so later edits are detectable, and doubles as the run's idempotency key.",
-  },
-  {
-    title: "Reconcile",
-    body: "Both directions, three grades of evidence: the memo in the transaction, a reference published afterwards for payments a Safe or custodian sent, or counterparty and amount when the pairing is unique. Anything ambiguous is held for a person, never guessed.",
-  },
-  {
-    title: "Verify",
-    body: "Anyone holding only an EndToEndId can find the payment on-chain through Arc's indexed memoId, and see that the memo's callDataHash matches that exact transfer.",
-  },
-  {
-    title: "Book",
-    body: "Matched payouts and receipts become balanced journal entries; exceptions land in suspense; the balance is rolled forward against the chain, exact to the wei. Export for Xero, QuickBooks, or as an ISO 20022 camt.054 notification.",
-  },
+const STEPS: Array<[string, string]> = [
+  ["Tag", "ISO 20022 memo on every payment, through Arc's native Memo contract."],
+  ["Anchor", "One transaction per run; the ledger hash goes first, so later edits show."],
+  ["Reconcile", "Both directions, three grades of evidence. Ambiguity is held, never guessed."],
+  ["Verify", "Find any payment from its EndToEndId alone, bound by callDataHash."],
+  ["Book", "Balanced entries, roll-forward to the wei, Xero, QuickBooks, camt.054."],
 ];
 
-const PRIMITIVES = [
-  { name: "Memo contract", why: "Payment references live in the same transaction as the transfer and are indexed by memoId." },
-  { name: "Multicall3From", why: "Batches keep the payer as msg.sender, so every transfer and memo is attributed to the paying wallet." },
-  { name: "USDC as gas", why: "Network fees are a plain USD expense. No second asset to value, no disposal events for gas." },
-  { name: "Deterministic finality", why: "One confirmation is final, so an entry can be booked the moment it lands." },
-  { name: "EIP-7708 transfer logs", why: "Even a plain wallet send of native USDC leaves a log, so Tieout sees every movement, not only ERC-20 calls." },
+const PRIMITIVES: Array<[string, string]> = [
+  ["Memo", "References live in the transaction, indexed by memoId."],
+  ["Multicall3From", "Batches keep the payer as msg.sender."],
+  ["USDC as gas", "Fees are a plain USD expense."],
+  ["EIP-7708 logs", "Even a plain wallet send leaves a trace."],
 ];
 
 const STATUSES: Array<[ReconStatus, string]> = [
-  ["matched", "Memo or trusted reference, counterparty, amount and token agree."],
-  ["matched_by_intent", "No memo, but counterparty, amount and token match exactly one open entry."],
-  ["mismatch", "The memo points to an entry, but the details differ. Short or over by exactly how much."],
-  ["ambiguous", "No memo and more than one way to pair. Held for a person, settled with one click."],
-  ["missing", "The ledger expects a payment or receipt that never happened."],
-  ["duplicate", "The same entry was settled twice."],
-  ["unexpected", "Money moved with no ledger entry, in either direction."],
+  ["matched", "Memo or reference agrees with the ledger."],
+  ["matched_by_intent", "No memo; counterparty and amount match one entry."],
+  ["mismatch", "Points to an entry, details differ. Short or over by how much."],
+  ["ambiguous", "More than one way to pair. Held for a person."],
+  ["missing", "Expected, never happened."],
+  ["duplicate", "Settled twice."],
+  ["unexpected", "Moved with no entry, either direction."],
 ];
 
 export default function Overview() {
@@ -61,11 +45,10 @@ export default function Overview() {
             USDC settles in under a second. Your books should keep up.
           </h1>
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-slate-600 text-pretty">
-            Tieout ties every USDC payment and receipt on Arc to the ledger entry it settles, flags what doesn't match, and turns the rest into
-            journal entries your accountant can import.
+            Tieout ties every USDC payment and receipt on Arc to the ledger entry it settles, flags what doesn't match, and hands your accountant balanced entries.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <button className="btn-primary" onClick={() => navigate("console", "demo")}>Run the PromptBazaar demo</button>
+            <button className="btn-primary" onClick={() => navigate("console", "demo")}>Run the mainnet demo</button>
             <button className="btn-secondary" onClick={() => navigate("verify")}>Verify a payment</button>
             <button className="btn-secondary" onClick={() => navigate("pay")}>Pay or request</button>
           </div>
@@ -95,45 +78,29 @@ export default function Overview() {
         </div>
       </section>
 
-      <section className="grid gap-5 md:grid-cols-3">
-        <div className="md:col-span-1">
-          <h2 className="text-xl font-semibold tracking-tight">The gap</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Payment rails for stablecoins are crowded. What happens after the money lands is not. Finance teams still match
-            transaction hashes to invoices by hand, and the tools that automate it are priced for enterprises and built for
-            multi-chain DeFi portfolios.
-          </p>
-        </div>
-        <div className="card p-5">
-          <div className="nums text-3xl font-semibold tracking-tight">70%</div>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-            of 350 corporate and financial-institution decision makers told EY-Parthenon they would be more inclined to adopt stablecoins
-            with ERP integrations available; 38% cited accounting and tax treatment as a barrier.
-          </p>
-          <ExternalLink className="mt-2 inline-block text-xs text-slate-500" href="https://www.ey.com/en_us/insights/financial-services/cost-savings-and-speed-drive-stablecoin-adoption">EY-Parthenon, Sept 2025 (n=350)</ExternalLink>
-        </div>
-        <div className="card p-5">
-          <div className="nums text-3xl font-semibold tracking-tight">0 new contracts</div>
-          <p className="mt-1.5 text-sm leading-relaxed text-slate-600">
-            Arc already has the primitives: memos, batching, dollar-denominated fees, instant finality. Tieout wires them into a
-            ledger workflow instead of adding new contracts.
-          </p>
-        </div>
+      <section className="grid gap-4 sm:grid-cols-3">
+        {[
+          ["70%", "of 350 corporates and FIs would adopt stablecoins sooner with ERP integration.", "EY-Parthenon, 2025", "https://www.ey.com/en_us/insights/financial-services/cost-savings-and-speed-drive-stablecoin-adoption"],
+          ["$226B", "of real stablecoin payments in 2025 were B2B, money that lands in someone's books.", "McKinsey × Artemis", "https://www.mckinsey.com/industries/financial-services/our-insights/stablecoins-in-payments-what-the-raw-transaction-numbers-miss"],
+          ["0.88×", "the cost of a plain transfer for a memo-tagged payment in a batch, measured on mainnet.", "This repository", `https://explorer.arc.io/tx/${MAINNET_BATCH}`],
+        ].map(([n, body, src, href]) => (
+          <div key={n} className="card p-5">
+            <div className="nums text-3xl font-semibold tracking-tight">{n}</div>
+            <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{body}</p>
+            <ExternalLink href={href!} className="mt-2 inline-block text-xs text-slate-500">{src}</ExternalLink>
+          </div>
+        ))}
       </section>
 
       <section>
-        <div className="flex items-end justify-between gap-4">
-          <div>
-            <p className="eyebrow">How it works</p>
-            <h2 className="mt-1 text-xl font-semibold tracking-tight">Five steps, one transaction per run</h2>
-          </div>
-        </div>
-        <div className="mt-5 grid gap-4 md:grid-cols-5">
-          {STEPS.map((s, i) => (
-            <div key={s.title} className="card p-5">
+        <p className="eyebrow">How it works</p>
+        <h2 className="mt-1 text-xl font-semibold tracking-tight">Five steps, one transaction per run</h2>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+          {STEPS.map(([title, body], i) => (
+            <div key={title} className="card p-5">
               <div className="nums flex h-7 w-7 items-center justify-center rounded-full bg-ink text-xs font-semibold text-white">{i + 1}</div>
-              <h3 className="mt-3 font-semibold">{s.title}</h3>
-              <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{s.body}</p>
+              <h3 className="mt-3 font-semibold">{title}</h3>
+              <p className="mt-1 text-[13.5px] leading-relaxed text-slate-600">{body}</p>
             </div>
           ))}
         </div>
@@ -141,56 +108,42 @@ export default function Overview() {
 
       <section className="grid gap-8 lg:grid-cols-2">
         <div>
-          <p className="eyebrow">Built on Arc</p>
-          <h2 className="mt-1 text-xl font-semibold tracking-tight">Arc's own primitives, nothing added</h2>
-          <p className="mt-1 text-sm text-slate-600">No custom contracts. Everything uses what Arc ships at genesis.</p>
-          <dl className="mt-4 space-y-3">
-            {PRIMITIVES.map((p) => (
-              <div key={p.name} className="card p-4">
-                <dt className="font-semibold">{p.name}</dt>
-                <dd className="mt-0.5 text-sm leading-relaxed text-slate-600">{p.why}</dd>
-              </div>
-            ))}
-          </dl>
-        </div>
-        <div>
           <p className="eyebrow">Outcomes</p>
           <h2 className="mt-1 text-xl font-semibold tracking-tight">Seven outcomes, nothing silent</h2>
-          <p className="mt-1 text-sm text-slate-600">Every ledger entry and every transfer ends up in exactly one bucket, with its grade of evidence.</p>
           <div className="card mt-4 divide-y divide-slate-100">
             {STATUSES.map(([status, body]) => (
-              <div key={status} className="flex items-start gap-4 p-4 text-sm">
-                <div className="w-40 shrink-0 pt-0.5"><StatusBadge status={status} /></div>
-                <div className="leading-relaxed text-slate-600">{body}</div>
+              <div key={status} className="flex items-center gap-4 px-4 py-3 text-sm">
+                <div className="w-40 shrink-0"><StatusBadge status={status} /></div>
+                <div className="text-slate-600">{body}</div>
               </div>
             ))}
           </div>
         </div>
+        <div>
+          <p className="eyebrow">Built on Arc</p>
+          <h2 className="mt-1 text-xl font-semibold tracking-tight">Arc's own primitives, nothing added</h2>
+          <dl className="mt-4 grid gap-3 sm:grid-cols-2">
+            {PRIMITIVES.map(([name, why]) => (
+              <div key={name} className="card p-4">
+                <dt className="font-semibold">{name}</dt>
+                <dd className="mt-0.5 text-sm leading-relaxed text-slate-600">{why}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="card mt-3 p-4 text-sm leading-relaxed text-slate-600">
+            <span className="font-semibold text-slate-800">Any payer.</span> EOA, Safe, custodian or plain send; payouts out and invoices in. References published afterwards give memo-less payments the same evidence as a memo.
+          </div>
+        </div>
       </section>
 
-      <section className="card grid gap-8 p-6 sm:p-8 md:grid-cols-2">
+      <section className="card flex flex-col items-start gap-4 p-6 sm:flex-row sm:items-center sm:justify-between sm:p-8">
         <div>
-          <h2 className="text-xl font-semibold tracking-tight">Works with any payer</h2>
-          <p className="mt-2 text-sm leading-relaxed text-slate-600">
-            Tieout doesn't move money. It reconciles whatever wallet you point it at, whether payouts were sent through Tieout's
-            batch builder, a payouts provider, a Safe, or by hand, and whether money went out to payees or came in against your invoices.
-            Payment request links put your invoice id into the payer's memo so receipts reconcile themselves; references published afterwards
-            give Safe and custodial payments the same evidence as a memo.
-          </p>
+          <h2 className="text-xl font-semibold tracking-tight">Others prove the money moved. Tieout proves the books are right.</h2>
+          <p className="mt-1 text-sm text-slate-600">Open source, Apache-2.0. A memo convention for the whole chain, an SDK to compose with, an audit bundle anyone can re-run.</p>
         </div>
-        <div>
-          <h2 className="text-xl font-semibold tracking-tight">Next</h2>
-          <ul className="mt-2 space-y-1.5 text-sm leading-relaxed text-slate-600">
-            {[
-              "Webhook ingestion from payouts providers on Arc",
-              "Direct sync to Xero and QuickBooks via their APIs",
-              "EURC and local stablecoins with recorded FX rates",
-              "View-key based audits once Arc's opt-in privacy ships",
-              "Propose the tp1 memo schema to the Arc team as a shared convention",
-            ].map((t) => (
-              <li key={t} className="flex gap-2"><span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-slate-400" aria-hidden />{t}</li>
-            ))}
-          </ul>
+        <div className="flex shrink-0 gap-3">
+          <button className="btn-primary" onClick={() => navigate("console", "demo")}>Run the demo</button>
+          <ExternalLink href="https://github.com/ZhenYan1214/TallyPay" className="btn-secondary no-underline hover:no-underline">Source</ExternalLink>
         </div>
       </section>
     </div>
