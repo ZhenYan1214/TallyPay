@@ -76,7 +76,7 @@ tp1-run:{"PmtInfId":"PB-202610-ELLE","NbOfTxs":10,"CtrlSum":"1.367","LedgerHash"
 
 The anchor commits to the ledger **as it was when the money moved**. If someone later edits an amount or recipient in the ledger, the stored hash no longer matches, and the reconciler reports exactly which entry changed.
 
-The anchor is also the run's **idempotency key**. Before sending, a client looks up `runAnchorMemoId(PmtInfId)` on-chain; if this wallet already anchored that run, it refuses to send again. A double-submitted payroll approval therefore cannot pay everyone twice, which is the failure mode behind several well-publicised exchange and payroll incidents.
+The anchor also serves as the run's **idempotency key**: before sending, a client looks up `runAnchorMemoId(PmtInfId)` on-chain and declines to send a run this wallet already anchored. That lowers the risk of a double-submitted payroll approval paying everyone twice, the failure mode behind several well-publicised exchange and payroll incidents. It is a client-side check, not an on-chain guarantee: concurrent sends or sends from another wallet are not prevented, and a reconciler must still report a second settlement of an EndToEndId as a duplicate.
 
 ## 4a. Reference memo
 

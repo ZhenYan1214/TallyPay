@@ -371,7 +371,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
               </div>
               <p className="text-xs text-slate-500">
                 Memos carry only ISO 20022 identifiers (EndToEndId, PmtInfId, Purp, CdtrRef). Payee names stay in your ledger and are never written on-chain.
-                Before sending, Tieout checks Arc for an earlier anchor with the same run id so a double-submitted run cannot pay everyone twice.
+                Before sending, Tieout checks Arc for an earlier anchor with the same run id, which lowers the risk of paying a double-submitted run twice. It is a pre-send check, not an on-chain lock.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <button className="btn-primary" disabled={!!busy || !!sent || (priorExecution?.runId === runId)} onClick={send}>

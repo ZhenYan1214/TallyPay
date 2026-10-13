@@ -21,7 +21,7 @@
 2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the design: evidence grades, trust boundaries, what is left out and why.
 3. [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md) is the proposal for an Arc-wide payment memo convention.
 4. [docs/RESEARCH.md](docs/RESEARCH.md) is why this is needed, with sources (Chinese).
-5. `npm test` runs 52 tests in about a second; `npm run verify-bundle -- <audit.json>` re-runs any report somebody hands you.
+5. `npm test` runs 58 tests in about a second; `npm run verify-bundle -- <audit.json>` re-runs any report somebody hands you.
 
 ## Try it in 60 seconds
 
@@ -50,7 +50,7 @@ Arc is unusually well suited to fix this: memos live in the same transaction as 
 | Step | How |
 |---|---|
 | **Tag** | Each payment carries an ISO 20022-style memo (`EndToEndId`, `PmtInfId`, `Purp`, `CdtrRef`) through Arc's predeployed `Memo` contract. |
-| **Batch and anchor** | A payout run is one transaction through Arc's `Multicall3From`. Its first call anchors a hash of the ledger (`NbOfTxs`, `CtrlSum`, `LedgerHash`), so edits made after payment are detectable. The anchor is also the run's idempotency key: a run that was already anchored by this wallet is refused before it can pay anyone twice. |
+| **Batch and anchor** | A payout run is one transaction through Arc's `Multicall3From`. Its first call anchors a hash of the ledger (`NbOfTxs`, `CtrlSum`, `LedgerHash`), so edits made after payment are detectable. Before sending, the app looks the run's anchor up on-chain and declines to send a run this wallet already anchored, which lowers the risk of paying a batch twice; it is a client-side check, not an on-chain guarantee (see "What the anchor does and does not prove"). |
 | **Request** | A payee builds a payment request link carrying its invoice id. The payer opens it, the memo carries the id, and the receipt matches the invoice without anyone exchanging a transaction hash. |
 | **Reconcile** | Reads the wallet's activity from any public Arc RPC, in both directions, including native USDC sends that only appear in Arc's EIP-7708 system log. Matches with three grades of evidence: the memo in the transaction, a reference published afterwards, or counterparty + token + amount when the pairing is unique. Ambiguous pairings are held for a person, never guessed. Several ledgers (a month of payout runs plus the invoices) reconcile in one pass; the range can be given as dates. |
 | **Attest** | For payments a Safe, custodian or plain wallet send made without a memo, any trusted EOA can publish an on-chain reference afterwards. It names the transaction and the EndToEndId and shares the payment's memoId, so from then on the payment is findable by id and reconciles as first-class evidence. |
@@ -188,6 +188,10 @@ Tieout doesn't move money for you. It reconciles whatever wallet you point it at
 
 **Why does the anchor only cover its own transaction?** Runs get split: some entries are held back, some are paid separately. The anchor commits to what was actually paid in that transaction, recovered from the memos in it, so a held entry does not produce a false "ledger tampered" alarm.
 
+**What the anchor does and does not prove.** It proves the ledger you hold now is the ledger that was committed when the money moved. It does not prove that ledger was right to begin with; that is what the reconciliation against the chain, the roll-forward and a human reviewer are for. Likewise the pre-send lookup lowers the risk of a double-submitted run, but it is a client-side check: two sends racing from the same wallet within a block, or from two different wallets, are not prevented on-chain. An atomic on-chain guard would need a custom contract, which this project deliberately avoids; the reconciler reports any second settlement of an EndToEndId as `duplicate` so it cannot go unnoticed.
+
+**Balanced is not the same as correct.** Every journal entry Tieout emits balances, and every amount comes from the chain. Whether the debit account, the transaction's nature and the recognition policy are right for your entity is an accountant's decision; the chart of accounts is configurable for that reason, and every page says so.
+
 **Is the accounting correct?** Entries are templates for an accountant, and every page says so. Account codes are configurable. Stablecoin classification is still moving (FASB proposed in August 2026 that qualifying stablecoins could be cash equivalents, comments due November), which is exactly why the output is a reviewable journal, and why the roll-forward reports balances per token.
 
 ## Findings from building on Arc
@@ -218,7 +222,7 @@ docs/                             memo spec, architecture, integration guide, su
 
 - **No backend and no keys on a server.** The web app reads Arc directly from the browser. Payouts are signed by the user's own wallet (EIP-1193).
 - **No custom contracts.** Payments go through Arc's predeployed `Memo` (`0x5294…e505`) and `Multicall3From` (`0x522f…47D0`).
-- 52 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all four evidence grades, ambiguity and its manual resolution, statement mode, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
+- 58 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all four evidence grades, ambiguity and its manual resolution, statement mode, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
 
 ## Run it
 
@@ -292,6 +296,7 @@ Journal entries are **templates for review by an accountant, not accounting or t
 - Browser scans are limited to 200,000 blocks per run. Longer periods need an indexer (Goldsky, The Graph and Envio support Arc). Public RPCs still return the occasional HTTP 429 on bursts; the reader keeps four requests in flight behind a batching transport and viem retries, so scans complete, but your own RPC URL is faster.
 - Native USDC amounts below one millionth are floored; the exact 18-decimal figure is kept on the observation.
 - The Pay page sends from a browser wallet (EOA). It demonstrates the batch builder; a Safe-based payer would use the SDK's `buildPayoutRun` output through its own signing flow and still reconcile here.
+- This is a proof of concept with no backend by design. An enterprise deployment would add an indexer for volume, ERP APIs instead of CSV, and authentication and roles around who may publish references or record decisions. The engine is a pure function so those layers can sit around it unchanged.
 
 ## Roadmap
 
@@ -321,7 +326,7 @@ Tieout 是 Arc 上的對帳層：把 Arc 上每一筆 USDC 付款與收款對到
 - 三種證據等級：交易裡的 Memo、事後由受信任的 EOA 發布的參考（解決 Safe、託管、交易所付款沒有 Memo 的問題）、唯一配對的意圖比對；配不唯一就標 ambiguous 交給人，絕不猜
 - 同時讀 ERC-20 事件與 EIP-7708 系統事件，所以用 MetaMask 直接「Send」的原生 USDC 也看得到
 - Memo 欄位採用 ISO 20022 命名，只放識別碼；格式規格見 `docs/MEMO_SPEC.md`；可匯出 Xero、QuickBooks 與 camt.054
-- 帳本雜湊錨定在鏈上，事後竄改可精準抓出；錨點同時是批次的冪等鍵，重複送出的批次會被擋下
+- 帳本雜湊錨定在鏈上，事後竄改可精準抓出；送出前先查鏈上錨點，降低重複付款的風險（屬於前端檢查，不是鏈上強制）
 - Verify 頁只憑 `EndToEndId` 就能在鏈上找到那筆付款
 - 實測：批次裡一筆帶 Memo 的付款，比單獨送一筆純轉帳還便宜
 - PromptBazaar 是模擬的市集，但所有交易都是真實的 Arc 交易；研究背景見 `docs/RESEARCH.md`

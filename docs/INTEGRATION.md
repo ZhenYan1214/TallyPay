@@ -23,7 +23,7 @@ const plan = buildPayoutRun({
 await walletClient.sendTransaction({ to: plan.to, data: plan.data, maxFeePerGas: MIN_MAX_FEE_PER_GAS * 3n, maxPriorityFeePerGas: 1_000_000_000n });
 ```
 
-One transaction, up to 100 payments, through Arc's predeployed `Multicall3From` and `Memo`. The first call anchors the ledger hash; `plan.anchor.LedgerHash` is what you store with the batch. Before sending, look up `runAnchorMemoId(PmtInfId)` with `findMemos` and refuse if it already exists: that is your idempotency check.
+One transaction, up to 100 payments, through Arc's predeployed `Multicall3From` and `Memo`. The first call anchors the ledger hash; `plan.anchor.LedgerHash` is what you store with the batch. Before sending, look up `runAnchorMemoId(PmtInfId)` with `findMemos` and decline if it already exists. That lowers the risk of a double send; it is not atomic, so keep your own idempotency key around the send as well and treat a `duplicate` in reconciliation as the backstop.
 
 ## 2. Publish references when you cannot emit memos (Safe, custodian, exchange)
 

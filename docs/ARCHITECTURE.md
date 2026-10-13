@@ -55,7 +55,8 @@ Everything right of the ledger is deterministic given the chain. The audit bundl
 
 ## 5. Idempotency
 
-- A payout run's anchor memo is its idempotency key. Before sending, the Pay page looks up `runAnchorMemoId(PmtInfId)` on-chain; if this wallet already anchored that run, it refuses. Without an anchor, the first payment's `memoId` serves the same purpose.
+- A payout run's anchor memo serves as its idempotency key, with an honest limit. Before sending, the Pay page looks up `runAnchorMemoId(PmtInfId)` on-chain and declines to send a run this wallet already anchored; without an anchor, the first payment's `memoId` serves the same purpose. This is a client-side check that lowers the risk of a double-submitted run. It is not an on-chain guarantee: two sends racing within the same block, or sends from two different wallets, are not prevented. Atomic enforcement would require a custom contract, which is deliberately out of scope; the reconciler reports any second settlement of an EndToEndId as `duplicate`, so a race is caught after the fact, never hidden.
+- The anchor proves the ledger held now matches the ledger committed when the money moved. It does not prove the original ledger was correct; reconciliation, the roll-forward and a reviewer do that.
 - Duplicate `EndToEndId`s in one ledger are rejected before anything runs. Duplicate recipient+amount pairs in one run are warned about, not blocked, because they can be legitimate.
 - A second transfer for an already-settled `EndToEndId` is reported as `duplicate`, never silently merged.
 

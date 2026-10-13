@@ -27,7 +27,7 @@ function Glyph({ d }: { d: ReactNode }) {
 
 const STEPS = [
   { icon: I.tag, title: "Tag", body: "ISO 20022 memo on every payment, through Arc's native Memo contract." },
-  { icon: I.anchor, title: "Anchor", body: "One transaction per run; the ledger hash goes first, so later edits show." },
+  { icon: I.anchor, title: "Anchor", body: "One transaction per run; the ledger hash goes first, so later edits to the ledger show." },
   { icon: I.tie, title: "Reconcile", body: "Both directions, three grades of evidence. Ambiguity is held, never guessed." },
   { icon: I.search, title: "Verify", body: "Find any payment from its EndToEndId alone, bound by callDataHash." },
   { icon: I.book, title: "Book", body: "Balanced entries, roll-forward to the wei, Xero, QuickBooks, camt.054." },

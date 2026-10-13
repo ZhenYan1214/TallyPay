@@ -398,7 +398,7 @@ ReconReport { items, anchors, summary }
 | 語言 | TypeScript | 前後端共用 SDK |
 | 鏈互動 | viem | 型別安全、輕量 |
 | 前端 | Vite + React + Tailwind v4 | 靜態網站，可部署在任何地方 |
-| 測試 | Vitest 5 | 50 個單元測試；`npm audit` 0 個漏洞 |
+| 測試 | Vitest 5 | 58 個單元測試；`npm audit` 0 個漏洞 |
 | 命令列 | tsx | 直接執行 TypeScript |
 | 部署 | GitHub Pages + Actions | 只需要 GitHub 帳號 |
 | 授權 | Apache-2.0 | — |
@@ -488,7 +488,7 @@ ReconReport { items, anchors, summary }
 | Reconcile：首頁一鍵自動執行 demo、情境導覽面板、RPC 失敗時改用快照 | ✅ |
 | Verify：憑 `EndToEndId` 查鏈上 memo，`callDataHash` 連結到轉帳 | ✅（測試網實測） |
 | 命令列：技術驗證、示範情境、對帳、gas 報告、快照、資金回收、測試錢包 | ✅ |
-| 單元測試 50 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + 套件建置 + 網站建置（PR 也跑） | ✅ 全部通過 |
+| 單元測試 58 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + 套件建置 + 網站建置（PR 也跑） | ✅ 全部通過 |
 | 稽核包重跑工具、SECURITY.md、OG 預覽、手機版面 | ✅ |
 | 人工決定、對帳單模式、自訂 RPC、批次傳輸、可發佈套件 | ✅ |
 | README（英文 + 中文簡介）、Memo 規格書、投稿稿、研究筆記、Apache-2.0 授權 | ✅ |
