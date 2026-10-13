@@ -7,8 +7,8 @@ Everything needed for the Arc Microgrants form, ready to paste once the mainnet 
 - [x] `npm run demo -- --network=arc-mainnet` run on 2026-10-13: run `PB-202610-I7JR`, 7 transactions, payer fees 0.018344 USDC
 - [x] `npm run snapshot` and `npm run gas` run; README "What it costs" shows mainnet numbers
 - [x] README top links filled in (live URL assumes GitHub Pages on the ZhenYan1214/ARC repository)
-- [ ] Repo is public, GitHub Pages enabled (Settings → Pages → Source: GitHub Actions), the Actions run is green
-- [ ] Open the live URL in a private window: Overview → "Run the PromptBazaar demo" reconciles the **mainnet** run without any clicks; the balance roll-forward shows "fully explained"
+- [x] Repo is public, GitHub Pages enabled, the Actions run is green (2026-10-13)
+- [x] Live URL opens and "Run the PromptBazaar demo" reconciles the **mainnet** run without any clicks; the balance roll-forward shows "fully explained"
 - [ ] Verify page: "Use a demo payment · Arc Mainnet" → "Look up" finds the memo
 - [ ] Pay page: "Request a payment" produces a link; opening it prefills the Send tab
 - [ ] Reconcile page: the demo's intent-matched payment shows the "Attach references on-chain" card; the seller-11 case shows evidence "reference"

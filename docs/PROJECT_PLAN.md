@@ -248,6 +248,16 @@
 | 分享連結的人 | 沒有 Open Graph 預覽 | 加 og:title / description / image 與 theme-color |
 | 十分鐘的審查員 | README 太長 | 頂端加「If you have ten minutes」五步地圖 |
 
+### 3.11 第七輪：主網上線後的修正與 UI/UX 精緻化（2026-10-13）
+
+- 主網 demo 第一次跑出兩個讀取 bug（收款方 memo 由付款方簽署、18 位小數手續費造成 1 單位 dust），當天修掉並補測試。
+- 設計系統：Inter 與 JetBrains Mono、墨色主按鈕、紙色背景、卡片陰影層次、焦點環、等寬數字；共用元件（頁首、欄位、可展開區塊、徽章、提示、進度條、空狀態、雜湊縮寫）。
+- Reconcile 頁重整為來源、錢包、進階三段；掃描區間快捷鍵；階段式進度；空狀態；錯誤訊息改人話；收款列可省略 recipient。
+- 首頁加主網上線標籤與真實 run id；頁首加 GitHub，頁尾加文件連結。
+- Pay 頁在已開啟狀態下收到新的請款連結也會更新。
+- 四頁手機寬度無橫向溢出。
+- GitHub repo 改名為 TallyPay（由使用者操作），Pages 網址 `https://zhenyan1214.github.io/TallyPay/`，CI 綠燈，線上 demo 驗證通過。
+
 ---
 
 ## 4. 最終定位
@@ -543,15 +553,15 @@ ReconReport { items, anchors, summary }
 
 ### 11.3 發布
 
-- [x] 修改拆成有意義的 git commit（本機）
-- [ ] 推送到 GitHub 公開 repo（remote 已設定）
-- [ ] 在 repo 設定裡開啟 GitHub Pages（Source：GitHub Actions）
-- [ ] README 補上網站網址與主網交易連結
+- [x] 修改拆成有意義的 git commit
+- [x] 推送到 GitHub 公開 repo `ZhenYan1214/TallyPay`
+- [x] GitHub Pages 已開啟，CI 自動部署
+- [x] README 已有網站網址與主網交易連結
 
 ### 11.4 DoraHacks 投稿
 
-- [ ] 主網上可以打開的網站連結
-- [ ] 公開 repo 連結
+- [x] 主網上可以打開的網站連結：https://zhenyan1214.github.io/TallyPay/
+- [x] 公開 repo 連結：https://github.com/ZhenYan1214/TallyPay
 - [ ] 專案說明（做什麼、用 Arc 做什麼）：`docs/SUBMISSION.md` 已寫好，填入連結即可
 - [ ] 公開個人檔案（GitHub、X 或 Farcaster）：確認有頭像、名字、釘選這個 repo
 - [ ] 截止：台灣時間 10/15（四）早上 11:59

@@ -76,7 +76,25 @@ export function buildPaymentRequestUrl(base: string, p: { network: NetworkId; to
 type Tab = "send" | "request";
 
 export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedger) => void }) {
-  const requested = useMemo(() => parsePaymentRequest(window.location.hash), []);
+  const [requested, setRequested] = useState(() => parsePaymentRequest(window.location.hash));
+  useEffect(() => {
+    const onHash = () => {
+      const next = parsePaymentRequest(window.location.hash);
+      if (next.instruction || next.expired) {
+        setRequested(next);
+        if (next.instruction) {
+          setInstructions([next.instruction]);
+          if (next.runId) setRunId(next.runId);
+          if (next.network) setNetworkId(next.network);
+          setAnchor(false);
+          setSent(null);
+          setTab("send");
+        }
+      }
+    };
+    window.addEventListener("hashchange", onHash);
+    return () => window.removeEventListener("hashchange", onHash);
+  }, []);
   const [tab, setTab] = useState<Tab>("send");
   const [networkId, setNetworkId] = useState<NetworkId>(requested.network ?? "arc-mainnet");
   const [account, setAccount] = useState<Address | null>(null);

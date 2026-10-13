@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Live app** | https://zhenyan1214.github.io/TallyPay/ (GitHub Pages; enable it under Settings → Pages → Source: GitHub Actions after the first push) |
+| **Live app** | https://zhenyan1214.github.io/TallyPay/ |
 | **Mainnet demo run** | [batch 0x252dd1ff…379e](https://explorer.arc.io/tx/0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e) from [0x2ccb42…e841](https://explorer.arc.io/address/0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841), run `PB-202610-I7JR`, 2026-10-13 |
 | **Memo spec** | [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md), a proposal for an Arc-wide payment memo convention |
 | **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): evidence grades, trust boundaries, what is deliberately left out |
@@ -21,7 +21,7 @@
 2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the design: evidence grades, trust boundaries, what is left out and why.
 3. [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md) is the proposal for an Arc-wide payment memo convention.
 4. [docs/RESEARCH.md](docs/RESEARCH.md) is why this is needed, with sources (Chinese).
-5. `npm test` runs 50 tests in about a second; `npm run verify-bundle -- <audit.json>` re-runs any report somebody hands you.
+5. `npm test` runs 52 tests in about a second; `npm run verify-bundle -- <audit.json>` re-runs any report somebody hands you.
 
 ## Try it in 60 seconds
 
@@ -218,7 +218,7 @@ docs/                             memo spec, architecture, integration guide, su
 
 - **No backend and no keys on a server.** The web app reads Arc directly from the browser. Payouts are signed by the user's own wallet (EIP-1193).
 - **No custom contracts.** Payments go through Arc's predeployed `Memo` (`0x5294…e505`) and `Multicall3From` (`0x522f…47D0`).
-- 50 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all four evidence grades, ambiguity and its manual resolution, statement mode, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
+- 52 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all four evidence grades, ambiguity and its manual resolution, statement mode, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
 
 ## Run it
 
