@@ -27,7 +27,7 @@ function transfer(from: Address, to: Address, amount: string, opts: { memo?: str
 }
 
 function activity(transfers: TransferObservation[], balances?: AccountActivity["balances"]): AccountActivity {
-  return { network: "arc-testnet", account: ME, fromBlock: 0n, toBlock: 200n, transfers, anchors: [], fees: [], balances };
+  return { network: "arc-testnet", account: ME, fromBlock: 0n, toBlock: 200n, transfers, anchors: [], references: [], fees: [], balances };
 }
 
 const receivables: PayoutInstruction[] = [

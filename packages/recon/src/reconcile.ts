@@ -9,17 +9,20 @@ import {
   type AccountActivity,
   type AnchorObservation,
   type PayoutInstruction,
+  type ReferenceObservation,
   type TokenSymbol,
   type TransferObservation,
 } from "@tieout/sdk";
 
 export type ReconStatus =
-  /** Memo EndToEndId, counterparty, amount and token all agree with the ledger. */
+  /** Memo (or an after-the-fact reference), counterparty, amount, token and direction all agree with the ledger. */
   | "matched"
-  /** No memo, but an unclaimed transfer has the same counterparty, amount and token. */
+  /** No memo, but exactly one unclaimed transfer has the same counterparty, amount and token, and fits no other entry. */
   | "matched_by_intent"
   /** Memo points at a ledger entry, but counterparty, amount, token or direction differ. */
   | "mismatch"
+  /** No memo and more than one way to pair entries and transfers. Never auto-matched; a human decides. */
+  | "ambiguous"
   /** Ledger entry with no corresponding transfer. */
   | "missing"
   /** A further transfer for an EndToEndId that was already settled. */
@@ -29,14 +32,24 @@ export type ReconStatus =
 
 export type Direction = "out" | "in";
 
+/** How strong the link between ledger entry and transfer is, strongest first. */
+export type Evidence = "memo" | "reference" | "intent";
+
 export interface ReconItem {
   status: ReconStatus;
   /** "out": the account paid. "in": the account received. */
   direction: Direction;
   instruction?: PayoutInstruction & { PmtInfId: string };
   transfer?: TransferObservation;
+  /** Present on matched / mismatch items: what tied the two sides together. */
+  evidence?: Evidence;
+  /** The after-the-fact reference that supplied the link, when evidence is "reference". */
+  reference?: ReferenceObservation;
   /** Chain amount minus ledger amount, in 6-decimal units. Negative = short-paid, positive = over-paid. */
   varianceUnits?: bigint;
+  /** Ambiguous entry: the transfers it could be. Ambiguous transfer: the entries it could settle. */
+  candidates?: TransferObservation[];
+  candidateIds?: string[];
   notes: string[];
 }
 
@@ -94,6 +107,8 @@ export interface ReconReport {
     /** Of the expected/settled totals, how much is receivable (direction "in"). */
     expectedInUnits: bigint;
     settledInUnits: bigint;
+    /** Settled items by evidence strength. */
+    byEvidence: Record<Evidence, number>;
   };
 }
 
@@ -108,6 +123,12 @@ export interface ReconcileOptions {
    * the ledger has at least one receivable entry and ignores them otherwise.
    */
   incoming?: "auto" | "reconcile" | "ignore";
+  /**
+   * Only references published by these EOAs are trusted. Defaults to the
+   * account itself plus every sender present in activity.references (i.e.
+   * whoever the caller chose to read memos from).
+   */
+  trustedReferenceSigners?: Address[];
   now?: Date;
 }
 
@@ -116,7 +137,7 @@ function same(a: string, b: string): boolean {
   return a.toLowerCase() === b.toLowerCase();
 }
 
-const EXCEPTIONS: ReconStatus[] = ["mismatch", "duplicate", "unexpected", "missing"];
+const EXCEPTIONS: ReconStatus[] = ["mismatch", "ambiguous", "duplicate", "unexpected", "missing"];
 
 export function isException(status: ReconStatus): boolean {
   return EXCEPTIONS.includes(status);
@@ -129,22 +150,27 @@ function varianceNote(transfer: TransferObservation, ledgerUnits: bigint): strin
   return `${label} by ${fromUnits(diff < 0n ? -diff : diff)}: chain ${fromUnits(transfer.amount)} vs ledger ${fromUnits(ledgerUnits)}`;
 }
 
+type Entry = PayoutInstruction & { PmtInfId: string };
+
 /**
  * Matches an account's on-chain activity against its own ledger, in both
- * directions.
+ * directions, with three strengths of evidence.
  *
- * Pass 1 uses memos: a transfer whose memo carries a known EndToEndId is
+ * Pass 1, memos: a transfer whose memo carries a known EndToEndId is
  * compared field by field with that ledger entry.
- * Pass 2 handles wallets that cannot attach memos (Safe, MPC custody) and
- * payers who did not: remaining entries are paired with remaining transfers
- * that have the same counterparty, token and amount, oldest first.
+ * Pass 2, references: a transfer with no memo of its own, whose transaction
+ * is named by an after-the-fact reference memo from a trusted EOA, is
+ * compared the same way. This is how payments from Safes, custodians and
+ * plain wallet sends get first-class evidence.
+ * Pass 3, intent: remaining entries are paired with remaining transfers on
+ * counterparty, token and amount, but only when the pairing is unique in
+ * both directions. Anything with more than one plausible pairing is
+ * reported as ambiguous and left for a person, never guessed.
  * Whatever is left becomes "missing" (ledger side) or "unexpected" (chain side).
  */
 export function reconcile(runs: LedgerRun[], activity: AccountActivity, options: ReconcileOptions = {}): ReconReport {
   const account = getAddress(activity.account);
-  const entries = runs.flatMap((run) =>
-    run.instructions.map((i) => ({ ...normalizeInstruction(i), PmtInfId: run.PmtInfId })),
-  );
+  const entries: Entry[] = runs.flatMap((run) => run.instructions.map((i) => ({ ...normalizeInstruction(i), PmtInfId: run.PmtInfId })));
   const byId = new Map(entries.map((e) => [e.EndToEndId, e]));
   if (byId.size !== entries.length) throw new Error("Ledger contains duplicate EndToEndIds");
 
@@ -158,29 +184,17 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
   const ignoredIncoming = reconcileIncoming
     ? { count: 0, units: 0n }
     : { count: incomingAll.length, units: incomingAll.reduce((s, t) => s + t.amount, 0n) };
+  const inScope = [...outgoing, ...incoming];
 
   const items: ReconItem[] = [];
   const settled = new Set<string>();
   const claimed = new Set<TransferObservation>();
   const directionOf = (t: TransferObservation): Direction => (same(t.from, account) ? "out" : "in");
 
-  // Pass 1: memo-linked transfers.
-  for (const transfer of [...outgoing, ...incoming]) {
-    const memo = transfer.memo?.decoded;
-    if (memo?.kind !== "payment") continue;
-    const entry = byId.get(memo.memo.EndToEndId);
-    if (!entry) continue;
-    claimed.add(transfer);
+  /** Field-by-field comparison once a transfer has been tied to an entry by memo or reference. */
+  function compare(entry: Entry, transfer: TransferObservation, memoRun: string | undefined): string[] {
     const direction = directionOf(transfer);
-
-    if (settled.has(entry.EndToEndId)) {
-      items.push({ status: "duplicate", direction, instruction: entry, transfer, notes: ["EndToEndId was already settled"] });
-      continue;
-    }
-    settled.add(entry.EndToEndId);
-
     const notes: string[] = [];
-    const ledgerUnits = toUnits(entry.amount);
     if (entry.direction !== direction) {
       notes.push(`Ledger expects money ${entry.direction === "in" ? "in" : "out"} but this transfer went ${direction}`);
     } else if (direction === "out") {
@@ -188,62 +202,141 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     } else if (entry.payer && !same(transfer.from, entry.payer)) {
       notes.push(`Payer ${transfer.from} differs from ledger ${entry.payer}`);
     }
-    const variance = varianceNote(transfer, ledgerUnits);
+    const variance = varianceNote(transfer, toUnits(entry.amount));
     if (variance) notes.push(variance);
     if (transfer.token !== entry.token) notes.push(`Token ${transfer.token} differs from ledger ${entry.token}`);
-    if (memo.memo.PmtInfId && memo.memo.PmtInfId !== entry.PmtInfId) {
-      notes.push(`Memo run ${memo.memo.PmtInfId} differs from ledger run ${entry.PmtInfId}`);
+    if (memoRun && memoRun !== entry.PmtInfId) notes.push(`Memo run ${memoRun} differs from ledger run ${entry.PmtInfId}`);
+    return notes;
+  }
+
+  function settle(entry: Entry, transfer: TransferObservation, evidence: Evidence, memoRun: string | undefined, reference?: ReferenceObservation) {
+    claimed.add(transfer);
+    const direction = directionOf(transfer);
+    if (settled.has(entry.EndToEndId)) {
+      items.push({ status: "duplicate", direction, instruction: entry, transfer, evidence, reference, notes: ["EndToEndId was already settled"] });
+      return;
     }
+    settled.add(entry.EndToEndId);
+    const notes = compare(entry, transfer, memoRun);
+    if (reference) notes.push(`Reference published after the fact by ${reference.sender} in ${reference.txHash}`);
     items.push({
-      status: notes.length ? "mismatch" : "matched",
+      status: notes.some((n) => !n.startsWith("Reference published")) ? "mismatch" : "matched",
       direction,
       instruction: entry,
       transfer,
-      varianceUnits: transfer.amount - ledgerUnits,
+      evidence,
+      reference,
+      varianceUnits: transfer.amount - toUnits(entry.amount),
       notes,
     });
   }
 
-  // Pass 2: intent matching for memo-less transfers.
+  // Pass 1: memo-linked transfers.
+  for (const transfer of inScope) {
+    const memo = transfer.memo?.decoded;
+    if (memo?.kind !== "payment") continue;
+    const entry = byId.get(memo.memo.EndToEndId);
+    if (!entry) continue;
+    settle(entry, transfer, "memo", memo.memo.PmtInfId);
+  }
+
+  // Pass 2: references published after the fact, from trusted EOAs only.
+  const trusted = new Set((options.trustedReferenceSigners ?? [account, ...activity.references.map((r) => r.sender)]).map((a) => a.toLowerCase()));
+  const refsByTx = new Map<string, ReferenceObservation[]>();
+  for (const r of activity.references) {
+    if (!trusted.has(r.sender.toLowerCase())) continue;
+    const list = refsByTx.get(r.reference.TxHash.toLowerCase()) ?? [];
+    list.push(r);
+    refsByTx.set(r.reference.TxHash.toLowerCase(), list);
+  }
+  const usedRefs = new Set<ReferenceObservation>();
+  for (const transfer of inScope) {
+    if (claimed.has(transfer) || transfer.memo?.decoded.kind === "payment") continue;
+    const refs = (refsByTx.get(transfer.txHash.toLowerCase()) ?? []).filter((r) => !usedRefs.has(r) && byId.has(r.reference.EndToEndId));
+    if (refs.length === 0) continue;
+    // Several references can name one transaction (a Safe batch). Pick the one whose entry fits this transfer.
+    const fitting = refs.filter((r) => compare(byId.get(r.reference.EndToEndId)!, transfer, undefined).length === 0);
+    const chosen = fitting[0] ?? (refs.length === 1 ? refs[0] : undefined);
+    if (!chosen) continue;
+    usedRefs.add(chosen);
+    settle(byId.get(chosen.reference.EndToEndId)!, transfer, "reference", chosen.reference.PmtInfId, chosen);
+  }
+
+  // Pass 3: intent matching, unique in both directions.
   const firstMatched = items
     .filter((i) => i.transfer)
     .reduce<number | undefined>((min, i) => (min === undefined || i.transfer!.timestamp < min ? i.transfer!.timestamp : min), undefined);
   const inWindow = (t: TransferObservation) =>
     options.intentWindowSeconds === undefined || firstMatched === undefined || Math.abs(t.timestamp - firstMatched) <= options.intentWindowSeconds;
-  const pool = [...outgoing, ...incoming].filter((t) => !claimed.has(t) && t.memo?.decoded.kind !== "payment");
-  for (const entry of entries) {
-    if (settled.has(entry.EndToEndId)) continue;
-    const units = toUnits(entry.amount);
-    const candidate = pool.find((t) => {
-      if (claimed.has(t) || t.token !== entry.token || t.amount !== units || !inWindow(t)) return false;
-      if (entry.direction === "out") return directionOf(t) === "out" && same(t.to, entry.recipient);
-      return directionOf(t) === "in" && (!entry.payer || same(t.from, entry.payer));
-    });
-    if (!candidate) continue;
-    claimed.add(candidate);
-    settled.add(entry.EndToEndId);
-    const how = entry.direction === "out" ? "recipient, token and amount" : entry.payer ? "payer, token and amount" : "token and amount";
+  const pool = inScope.filter((t) => !claimed.has(t) && t.memo?.decoded.kind !== "payment");
+  const open = entries.filter((e) => !settled.has(e.EndToEndId));
+  const fits = (entry: Entry, t: TransferObservation) => {
+    if (t.token !== entry.token || t.amount !== toUnits(entry.amount) || !inWindow(t)) return false;
+    if (entry.direction === "out") return directionOf(t) === "out" && same(t.to, entry.recipient);
+    return directionOf(t) === "in" && (!entry.payer || same(t.from, entry.payer));
+  };
+  const candidatesOf = new Map<string, TransferObservation[]>(open.map((e) => [e.EndToEndId, pool.filter((t) => fits(e, t))]));
+  const entriesFor = new Map<TransferObservation, Entry[]>();
+  for (const e of open) for (const t of candidatesOf.get(e.EndToEndId)!) entriesFor.set(t, [...(entriesFor.get(t) ?? []), e]);
+
+  const held = new Set<TransferObservation>();
+  for (const entry of open) {
+    const candidates = candidatesOf.get(entry.EndToEndId)!;
+    if (candidates.length === 0) continue;
+    const unique = candidates.length === 1 && entriesFor.get(candidates[0]!)!.length === 1;
+    if (unique) {
+      const t = candidates[0]!;
+      claimed.add(t);
+      settled.add(entry.EndToEndId);
+      const how = entry.direction === "out" ? "recipient, token and amount" : entry.payer ? "payer, token and amount" : "token and amount";
+      items.push({
+        status: "matched_by_intent",
+        direction: entry.direction!,
+        instruction: entry,
+        transfer: t,
+        evidence: "intent",
+        varianceUnits: 0n,
+        notes: [`No memo on this transfer; matched on ${how}, the only possible pairing${t.native ? " (native USDC transfer)" : ""}`],
+      });
+      continue;
+    }
+    for (const t of candidates) held.add(t);
+    const rivals = [...new Set(candidates.flatMap((t) => entriesFor.get(t)!.map((e) => e.EndToEndId)))].filter((id) => id !== entry.EndToEndId);
     items.push({
-      status: "matched_by_intent",
+      status: "ambiguous",
       direction: entry.direction!,
       instruction: entry,
-      transfer: candidate,
-      varianceUnits: 0n,
-      notes: [`No memo on this transfer; matched on ${how}${candidate.native ? " (native USDC transfer)" : ""}`],
+      candidates,
+      notes: [
+        `${candidates.length} transfer${candidates.length === 1 ? "" : "s"} could settle this entry` +
+          (rivals.length ? `, and ${rivals.length === 1 ? "entry" : "entries"} ${rivals.join(", ")} could claim the same money` : ""),
+        "No memo to decide. Attach references or settle by hand.",
+      ],
+    });
+  }
+  for (const t of held) {
+    if (claimed.has(t)) continue;
+    claimed.add(t);
+    const ids = entriesFor.get(t)!.map((e) => e.EndToEndId);
+    items.push({
+      status: "ambiguous",
+      direction: directionOf(t),
+      transfer: t,
+      candidateIds: ids,
+      notes: [`Could settle ${ids.join(" or ")}; held until a person decides`],
     });
   }
 
   for (const entry of entries) {
-    if (!settled.has(entry.EndToEndId)) {
-      items.push({
-        status: "missing",
-        direction: entry.direction!,
-        instruction: entry,
-        notes: [entry.direction === "in" ? "No incoming transfer found for this receivable" : "No transfer found for this ledger entry"],
-      });
-    }
+    if (settled.has(entry.EndToEndId) || candidatesOf.get(entry.EndToEndId)?.length) continue;
+    items.push({
+      status: "missing",
+      direction: entry.direction!,
+      instruction: entry,
+      notes: [entry.direction === "in" ? "No incoming transfer found for this receivable" : "No transfer found for this ledger entry"],
+    });
   }
-  for (const transfer of [...outgoing, ...incoming]) {
+  for (const transfer of inScope) {
     if (claimed.has(transfer)) continue;
     const memo = transfer.memo?.decoded;
     const direction = directionOf(transfer);
@@ -265,6 +358,7 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     matched: 0,
     matched_by_intent: 0,
     mismatch: 0,
+    ambiguous: 0,
     missing: 0,
     duplicate: 0,
     unexpected: 0,
@@ -273,14 +367,17 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     exceptionUnits: 0n,
     expectedInUnits: entries.filter((e) => e.direction === "in").reduce((s, e) => s + toUnits(e.amount), 0n),
     settledInUnits: 0n,
+    byEvidence: { memo: 0, reference: 0, intent: 0 },
   };
   for (const item of items) {
-    summary[item.status] += 1;
+    // Ambiguous transfers are counted through their entries, not twice.
+    if (!(item.status === "ambiguous" && !item.instruction)) summary[item.status] += 1;
     if (!item.transfer) continue;
     const cleared = item.status === "matched" || item.status === "matched_by_intent";
     if (cleared) {
       summary.settledUnits += item.transfer.amount;
       if (item.direction === "in") summary.settledInUnits += item.transfer.amount;
+      if (item.evidence) summary.byEvidence[item.evidence] += 1;
     } else summary.exceptionUnits += item.transfer.amount;
   }
 
@@ -364,11 +461,12 @@ function checkAnchor(run: LedgerRun, anchors: AnchorObservation[], transfers: Tr
 
 const ORDER: Record<ReconStatus, number> = {
   mismatch: 0,
-  duplicate: 1,
-  unexpected: 2,
-  missing: 3,
-  matched_by_intent: 4,
-  matched: 5,
+  ambiguous: 1,
+  duplicate: 2,
+  unexpected: 3,
+  missing: 4,
+  matched_by_intent: 5,
+  matched: 6,
 };
 
 function sortItems(items: ReconItem[]): ReconItem[] {

@@ -51,6 +51,7 @@ function activity(transfers: TransferObservation[], anchorHash = ledgerHash(ledg
     fromBlock: 0n,
     toBlock: 200n,
     transfers,
+    references: [],
     anchors: [
       {
         txHash: tx(1),
