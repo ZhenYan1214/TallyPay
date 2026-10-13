@@ -1,0 +1,12 @@
+{
+  "name": "@tallypay/sdk",
+  "version": "0.1.0",
+  "description": "Structured payment memos, batch payouts and log readers for Arc",
+  "license": "Apache-2.0",
+  "type": "module",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "dependencies": {
+    "viem": "^2.21.0"
+  }
+}

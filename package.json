@@ -1,0 +1,31 @@
+{
+  "name": "tallypay",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Reconciliation and accounting layer for USDC flows on Arc",
+  "license": "Apache-2.0",
+  "type": "module",
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "spike": "tsx scripts/spike-memo-batch.ts",
+    "demo": "tsx scripts/demo-scenario.ts",
+    "reconcile": "tsx scripts/reconcile.ts",
+    "testwallet": "tsx scripts/dev-test-wallet.ts",
+    "sweep": "tsx scripts/sweep-demo.ts"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.0",
+    "dotenv": "^16.4.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
+  },
+  "dependencies": {
+    "viem": "^2.21.0"
+  }
+}

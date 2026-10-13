@@ -1,0 +1,144 @@
+{
+  "PmtInfId": "PB-202610-ELLE",
+  "network": "arc-testnet",
+  "payer": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
+  "createdAt": "2026-10-13T03:55:49.096Z",
+  "description": "PromptBazaar seller payouts (simulated marketplace, real Arc transactions)",
+  "instructions": [
+    {
+      "EndToEndId": "PB-202610-ELLE-S01",
+      "recipient": "0xD4546dE874C7a4fEb0bAA5778E948023D457530F",
+      "amount": "0.184",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S01",
+      "payeeName": "Aiko Tanaka",
+      "payeeCountry": "JP"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S02",
+      "recipient": "0x335ed8C89cdA05089142b1879dAC656799fC91FA",
+      "amount": "0.097",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S02",
+      "payeeName": "Lucas Ferreira",
+      "payeeCountry": "BR"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S03",
+      "recipient": "0x3F16e752B3BE358eEC5D730000d95188f3378878",
+      "amount": "0.215",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S03",
+      "payeeName": "Amara Okafor",
+      "payeeCountry": "NG"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S04",
+      "recipient": "0x031539905A942E3304755B38FAc0Ef3e8368ab45",
+      "amount": "0.135",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S04",
+      "payeeName": "Priya Raman",
+      "payeeCountry": "IN"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S05",
+      "recipient": "0xd0b8c10BF01be90BA9663561a9083584Dbc50dF0",
+      "amount": "0.062",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S05",
+      "payeeName": "Mateo Rojas",
+      "payeeCountry": "AR"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S06",
+      "recipient": "0x3EcAE063Ee464F20b5C39FFB8165612A265a28e7",
+      "amount": "0.131",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S06",
+      "payeeName": "Lea Schmidt",
+      "payeeCountry": "DE"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S07",
+      "recipient": "0x9019Cd7dB7fF3B0e930d1b2AaeCF34cFdeFcE8E0",
+      "amount": "0.078",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S07",
+      "payeeName": "Minh Nguyen",
+      "payeeCountry": "VN"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S08",
+      "recipient": "0x5d66BE4259Aa7f53B1a7D5264d832Aad13149a37",
+      "amount": "0.109",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S08",
+      "payeeName": "Sofia Petrova",
+      "payeeCountry": "BG"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S09",
+      "recipient": "0x9Daf964539FAa522B5520d776272435a1caD1162",
+      "amount": "0.243",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S09",
+      "payeeName": "Chen Wei-Ting",
+      "payeeCountry": "TW"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S10",
+      "recipient": "0x3595a97820A3bd55F66F6649621E60924D6AFB54",
+      "amount": "0.056",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S10",
+      "payeeName": "Omar Haddad",
+      "payeeCountry": "JO"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S11",
+      "recipient": "0xC90cCd38eEF7C1cF3E2Aa97B47FEc1A444e2783A",
+      "amount": "0.120",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S11",
+      "payeeName": "Grace Mensah",
+      "payeeCountry": "GH"
+    },
+    {
+      "EndToEndId": "PB-202610-ELLE-S12",
+      "recipient": "0xCbBce1F5aD0755694064ac5b104b850Fd8341BDb",
+      "amount": "0.090",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S12",
+      "payeeName": "Daniel Kim",
+      "payeeCountry": "KR"
+    }
+  ],
+  "execution": {
+    "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+    "blockNumber": "66928254"
+  },
+  "scenario": {
+    "batchTx": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
+    "manualNoMemoTx": "0x0a956504ca24596100442f995ab573775df9eda6222d1dd92f5167da6e19a677",
+    "unrecordedTx": "0x555e713a9e2862ae1e40cf36d6e96f244d46d46d5fcc83059dbf446b65d509b6",
+    "editedAfterRun": "PB-202610-ELLE-S04",
+    "onHold": "PB-202610-ELLE-S12"
+  },
+  "scan": {
+    "fromBlock": "66928252",
+    "toBlock": "66928265"
+  }
+}
