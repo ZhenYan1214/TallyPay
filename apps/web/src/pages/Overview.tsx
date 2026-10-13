@@ -6,47 +6,30 @@ import type { ReconStatus } from "@tieout/recon";
 const MAINNET_BATCH = "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e";
 
 const STEPS = [
-  { title: "Tag", body: "Every payment carries an ISO 20022 memo through Arc's native Memo contract: EndToEndId, run, purpose, reference." },
-  { title: "Anchor", body: "A run is one transaction. Its first call commits a hash of the ledger, so an edit made after payment shows up, entry by entry." },
-  { title: "Reconcile", body: "Both directions, three grades of evidence: memo, published reference, unique intent. Ambiguity is held for a person, never guessed." },
-  { title: "Verify", body: "An auditor holding only an EndToEndId asks the chain directly. The memo is bound to its transfer by callDataHash." },
-  { title: "Book", body: "Balanced entries, a balance roll-forward exact to the wei, and exports for Xero, QuickBooks and ISO 20022 camt.054." },
+  { title: "Pay", body: "Send a batch from your own wallet. Each transfer carries a memo with its payout or invoice ID." },
+  { title: "Reconcile", body: "Tieout reads the wallet on Arc and matches every transfer to a line in your ledger. Payments sent without a memo are matched on amount and recipient, but only when there is exactly one candidate." },
+  { title: "Export", body: "Download journal entries for Xero or QuickBooks, a camt.054 file for a treasury system, or an audit file anyone can re-run." },
 ];
 
-const PRIMITIVES: Array<[string, string]> = [
-  ["Memo", "References live in the same transaction as the transfer, indexed by memoId."],
-  ["Multicall3From", "A whole run in one transaction, with the payer still msg.sender of every transfer."],
-  ["USDC as gas", "Fees are a plain dollar expense. No second asset to value, no disposal for gas."],
-  ["EIP-7708 logs", "Even a plain wallet send leaves a transfer log, so nothing moves unseen."],
-];
-
-const STATUSES: Array<[ReconStatus, string]> = [
-  ["matched", "Memo or reference agrees with the ledger."],
-  ["matched_by_intent", "No memo; counterparty and amount match exactly one entry."],
-  ["mismatch", "Points to an entry, details differ, and by how much."],
-  ["ambiguous", "More than one way to pair. Held for a person."],
-  ["missing", "Expected, never happened."],
-  ["duplicate", "Settled twice."],
-  ["unexpected", "Moved with no entry, in either direction."],
-];
+const STATUSES: ReconStatus[] = ["matched", "matched_by_intent", "mismatch", "ambiguous", "missing", "duplicate", "unexpected"];
 
 const FIGURES: Array<{ n: string; body: string; src: string; href: string }> = [
   {
     n: "70%",
-    body: "of 350 corporates and financial institutions would adopt stablecoins sooner with ERP integration.",
-    src: "EY-Parthenon, 2025",
+    body: "of companies surveyed say ERP integration would speed up their stablecoin adoption",
+    src: "EY-Parthenon",
     href: "https://www.ey.com/en_us/insights/financial-services/cost-savings-and-speed-drive-stablecoin-adoption",
   },
   {
     n: "$226B",
-    body: "of real stablecoin payments in 2025 were business to business: money that has to land in someone's books.",
-    src: "McKinsey × Artemis",
+    body: "in B2B stablecoin payments in 2025",
+    src: "McKinsey, Artemis",
     href: "https://www.mckinsey.com/industries/financial-services/our-insights/stablecoins-in-payments-what-the-raw-transaction-numbers-miss",
   },
   {
     n: "0.88×",
-    body: "the cost of a plain transfer, for a memo-tagged payment inside a batch. Measured on Arc mainnet.",
-    src: "Run PB-202610-I7JR",
+    body: "the gas of a plain transfer, for a payment with a memo in a batch",
+    src: "measured on Arc mainnet",
     href: `https://explorer.arc.io/tx/${MAINNET_BATCH}`,
   },
 ];
@@ -139,148 +122,78 @@ function TieOutSheet() {
         </div>
       </div>
       <figcaption className="mt-2.5 font-mono text-[10.5px] text-slate-500">
-        A real reconciliation of six of the run's sixteen items.{" "}
-        <ExternalLink href={`https://explorer.arc.io/tx/${MAINNET_BATCH}`}>See the batch on Arcscan ↗</ExternalLink>
+        Six rows from a real run on Arc mainnet.{" "}
+        <ExternalLink href={`https://explorer.arc.io/tx/${MAINNET_BATCH}`}>View on Arcscan ↗</ExternalLink>
       </figcaption>
     </figure>
   );
 }
 
-function SectionHead({ index, label, title }: { index: string; label: string; title: ReactNode }) {
-  return (
-    <div>
-      <div className="eyebrow">
-        <span className="text-slate-400">{index}</span>&nbsp;&nbsp;{label}
-      </div>
-      <h2 className="display mt-3 text-[34px] leading-[1.05] sm:text-[40px]">{title}</h2>
-    </div>
-  );
-}
-
 export default function Overview() {
   return (
-    <div className="space-y-24 pb-6">
+    <div className="space-y-20 pb-6">
       {/* Hero */}
       <section className="grid items-start gap-12 pt-6 lg:grid-cols-[1.08fr_0.92fr] lg:gap-16 lg:pt-12">
         <div className="min-w-0">
           <div className="rise flex flex-wrap items-center gap-3" style={stagger(0)}>
-            <span className="eyebrow">Reconciliation layer for Arc</span>
+            <span className="eyebrow">Reconciliation for Arc</span>
             <ExternalLink href={`https://explorer.arc.io/tx/${MAINNET_BATCH}`} className="chip no-underline hover:no-underline">
               <span className="h-1.5 w-1.5 bg-emerald-500" aria-hidden />
               Live on mainnet
             </ExternalLink>
           </div>
-          <h1 className="display rise mt-6 text-[52px] leading-[0.98] text-balance sm:text-[76px]" style={stagger(1)}>
-            USDC settles in under a second. <em className="text-emerald-700">Your books should keep up.</em>
+          <h1 className="display rise mt-6 text-[50px] leading-[1] text-balance sm:text-[72px]" style={stagger(1)}>
+            Check every USDC payment on Arc against <em className="text-emerald-700">your books.</em>
           </h1>
-          <p className="rise mt-7 max-w-[34rem] text-[17px] leading-relaxed text-slate-600 text-pretty" style={stagger(2)}>
-            Tieout ties every USDC payment and receipt on Arc to the ledger entry it settles, flags what doesn't match, and hands your
-            accountant balanced entries.
+          <p className="rise mt-7 max-w-[32rem] text-[17px] leading-relaxed text-slate-600 text-pretty" style={stagger(2)}>
+            Load your payout or invoice ledger and a wallet address. Tieout shows which transfers match, which don't, and gives you journal entries to import.
           </p>
           <div className="rise mt-9 flex flex-wrap gap-3" style={stagger(3)}>
-            <button className="btn-primary" onClick={() => navigate("console", "demo")}>Run the mainnet demo →</button>
-            <button className="btn-secondary" onClick={() => navigate("verify")}>Verify a payment</button>
+            <button className="btn-primary" onClick={() => navigate("console", "demo")}>Try the mainnet demo →</button>
             <button className="btn-secondary" onClick={() => navigate("pay")}>Pay or request</button>
           </div>
-          <p className="rise mt-6 font-mono text-[11px] leading-relaxed text-slate-500" style={stagger(4)}>
-            Runs in your browser against a public Arc RPC.
-            <br className="hidden sm:block" /> No backend · no keys held · no custom contracts.
+          <p className="rise mt-6 font-mono text-[11px] text-slate-500" style={stagger(4)}>
+            Runs in your browser. No server, no keys.
           </p>
         </div>
         <TieOutSheet />
       </section>
 
-      {/* Figures, set like notes to a statement */}
-      <section className="border-y border-slate-800">
-        <div className="grid divide-y divide-slate-300 sm:grid-cols-3 sm:divide-x sm:divide-y-0">
-          {FIGURES.map((f, i) => (
-            <div key={f.n} className="px-1 py-7 sm:px-7 sm:first:pl-0 sm:last:pr-0">
-              <div className="display nums text-[54px] leading-none">
-                {f.n}
-                <sup className="ml-1 font-mono text-[12px] text-slate-400">{i + 1}</sup>
-              </div>
-              <p className="mt-4 text-[14px] leading-relaxed text-slate-600">{f.body}</p>
-              <ExternalLink href={f.href} className="mt-3 inline-block font-mono text-[11px] text-slate-500">
-                {i + 1}. {f.src}
-              </ExternalLink>
-            </div>
-          ))}
-        </div>
+      {/* Figures */}
+      <section className="grid gap-6 border-y border-slate-800 py-6 sm:grid-cols-3 sm:gap-8">
+        {FIGURES.map((f) => (
+          <div key={f.n} className="flex items-baseline gap-4 sm:block">
+            <div className="display nums shrink-0 text-[40px] leading-none">{f.n}</div>
+            <p className="text-[14px] leading-snug text-slate-600 sm:mt-2">
+              {f.body}.{" "}
+              <ExternalLink href={f.href} className="font-mono text-[11px] whitespace-nowrap text-slate-500">{f.src}</ExternalLink>
+            </p>
+          </div>
+        ))}
       </section>
 
       {/* How it works */}
-      <section className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-        <div className="lg:sticky lg:top-24 lg:self-start">
-          <SectionHead index="01" label="How it works" title={<>Five steps.<br />One transaction per run.</>} />
-          <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-slate-600">
-            The ledger stays your system of record. Arc becomes legible to it.
-          </p>
-        </div>
-        <ol className="border-t border-slate-800">
-          {STEPS.map((s, i) => (
-            <li key={s.title} className="grid grid-cols-[3rem_1fr] gap-4 border-b border-slate-300 py-6 sm:grid-cols-[4rem_10rem_1fr] sm:gap-6">
-              <span className="nums pt-1 font-mono text-[12px] text-slate-400">0{i + 1}</span>
-              <h3 className="display text-[28px] leading-none">{s.title}</h3>
-              <p className="col-start-2 text-[15px] leading-relaxed text-slate-600 sm:col-start-3 sm:pt-0.5">{s.body}</p>
-            </li>
-          ))}
-        </ol>
-      </section>
-
-      {/* Outcomes */}
-      <section className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
+      <section className="grid gap-8 lg:grid-cols-[0.7fr_1.3fr]">
+        <h2 className="display text-[36px] leading-none">How it works</h2>
         <div>
-          <SectionHead index="02" label="Outcomes" title={<>Seven outcomes.<br /><em>Nothing silent.</em></>} />
-          <p className="mt-5 max-w-sm text-[15px] leading-relaxed text-slate-600">
-            Every ledger entry and every transfer lands in exactly one bucket, with its grade of evidence beside it.
-          </p>
-        </div>
-        <div className="border-t border-slate-800">
-          {STATUSES.map(([status, body]) => (
-            <div key={status} className="grid grid-cols-[8.5rem_1fr] items-center gap-4 border-b border-slate-300 py-3.5 text-[15px]">
-              <div><StatusBadge status={status} /></div>
-              <div className="text-slate-700">{body}</div>
-            </div>
-          ))}
-        </div>
-      </section>
-
-      {/* Built on Arc */}
-      <section className="grid gap-10 lg:grid-cols-[0.8fr_1.2fr]">
-        <div>
-          <SectionHead index="03" label="Built on Arc" title={<>Arc's own primitives.<br />Nothing added.</>} />
-        </div>
-        <div>
-          <dl className="border-t border-slate-800">
-            {PRIMITIVES.map(([name, why]) => (
-              <div key={name} className="grid gap-1 border-b border-slate-300 py-4 sm:grid-cols-[11rem_1fr] sm:gap-6">
-                <dt className="font-mono text-[13px] font-medium text-ink">{name}</dt>
-                <dd className="text-[15px] leading-relaxed text-slate-600">{why}</dd>
-              </div>
+          <ol className="border-t border-slate-800">
+            {STEPS.map((s, i) => (
+              <li key={s.title} className="grid grid-cols-[2.5rem_1fr] gap-x-4 border-b border-slate-300 py-5 sm:grid-cols-[3rem_9rem_1fr]">
+                <span className="nums pt-1.5 font-mono text-[12px] text-slate-400">{i + 1}</span>
+                <h3 className="display text-[26px] leading-none">{s.title}</h3>
+                <p className="col-start-2 mt-2 text-[15px] leading-relaxed text-slate-600 sm:col-start-3 sm:mt-0">{s.body}</p>
+              </li>
             ))}
-          </dl>
-          <p className="mt-6 border-l-[3px] border-emerald-600 pl-4 text-[15px] leading-relaxed text-slate-700">
-            <span className="font-semibold text-ink">Any payer.</span> EOA, Safe, custodian or a plain wallet send; payouts out and invoices
-            in. A reference published afterwards gives a memo-less payment the same evidence as a memo.
-          </p>
-        </div>
-      </section>
-
-      {/* Closing */}
-      <section className="border-y-[3px] border-double border-slate-800 py-12 sm:py-16">
-        <div className="flex flex-col gap-8 lg:flex-row lg:items-end lg:justify-between">
-          <blockquote className="display max-w-3xl text-[38px] leading-[1.05] sm:text-[52px]">
-            Others prove the money moved. <em className="text-emerald-700">Tieout proves the books are right.</em>
-          </blockquote>
-          <div className="flex shrink-0 flex-col items-start gap-4 lg:items-end">
-            <div className="flex gap-3">
-              <button className="btn-primary" onClick={() => navigate("console", "demo")}>Run the demo →</button>
-              <ExternalLink href={REPO_URL} className="btn-secondary no-underline hover:no-underline">Source</ExternalLink>
-            </div>
-            <p className="max-w-xs font-mono text-[11px] leading-relaxed text-slate-500 lg:text-right">
-              Apache-2.0 · a memo convention for the whole chain, an SDK to compose with, an audit bundle anyone can re-run.
-            </p>
+          </ol>
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <span className="mr-1 text-[14px] text-slate-600">Every line ends up as one of:</span>
+            {STATUSES.map((st) => <StatusBadge key={st} status={st} />)}
           </div>
+          <p className="mt-6 text-[14px] leading-relaxed text-slate-500">
+            Built only on contracts Arc already ships: <span className="font-mono text-[13px] text-slate-700">Memo</span> and{" "}
+            <span className="font-mono text-[13px] text-slate-700">Multicall3From</span>. Open source,{" "}
+            <ExternalLink href={REPO_URL}>Apache-2.0</ExternalLink>.
+          </p>
         </div>
       </section>
     </div>
