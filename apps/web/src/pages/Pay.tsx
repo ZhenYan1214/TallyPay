@@ -7,6 +7,7 @@ import {
   erc20Abi,
   findMemos,
   fromUnits,
+  paymentMemoId,
   runAnchorMemoId,
   toViemChain,
   txUrl,
@@ -33,12 +34,15 @@ const DOUBLE_PAY_LOOKBACK = 200_000n;
  * Same idea as a Solana Pay transfer request or a Stellar SEP-31 memo allocation: the
  * identifier is chosen by the receiver, so it is unique in the receiver's books by construction.
  */
-export function parsePaymentRequest(hash: string): { network?: NetworkId; runId?: string; instruction?: PayoutInstruction } {
+export function parsePaymentRequest(hash: string, now = Date.now()): { network?: NetworkId; runId?: string; instruction?: PayoutInstruction; expired?: boolean } {
   const q = new URLSearchParams(hash.split("?")[1] ?? "");
   const to = q.get("to");
   const amount = q.get("amount");
   const id = q.get("id");
   if (!to || !amount || !id || !isAddress(to)) return {};
+  const exp = q.get("exp");
+  // Like a Coinbase Commerce charge deadline: a stale request must not be payable months later.
+  if (exp && Number(exp) * 1000 < now) return { expired: true };
   const network = q.get("net");
   return {
     network: network === "arc-mainnet" || network === "arc-testnet" ? network : undefined,
@@ -55,9 +59,10 @@ export function parsePaymentRequest(hash: string): { network?: NetworkId; runId?
   };
 }
 
-export function buildPaymentRequestUrl(base: string, p: { network: NetworkId; to: string; amount: string; id: string; run?: string; ref?: string; purp?: string; token?: string }): string {
+export function buildPaymentRequestUrl(base: string, p: { network: NetworkId; to: string; amount: string; id: string; run?: string; ref?: string; purp?: string; token?: string; expiresAt?: number }): string {
   const q = new URLSearchParams();
   q.set("to", p.to);
+  if (p.expiresAt) q.set("exp", String(Math.floor(p.expiresAt)));
   q.set("amount", p.amount);
   q.set("id", p.id);
   q.set("net", p.network);
@@ -133,15 +138,19 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
     setBalance(fromUnits(units));
   }
 
-  /** Idempotency: refuse to send a run whose anchor already exists on-chain from this wallet. */
+  /**
+   * Idempotency: refuse to send a run whose anchor already exists on-chain from
+   * this wallet. Without an anchor, the first payment's memoId stands in for it.
+   */
   async function checkNotAlreadyPaid(): Promise<boolean> {
-    if (!anchor) return true;
     const client = publicClientFor(networkId);
     const latest = await client.getBlockNumber();
+    const firstId = instructions[0]?.EndToEndId;
+    if (!anchor && !firstId) return true;
     const found = await findMemos({
       client,
       network,
-      memoId: runAnchorMemoId(runId),
+      memoId: anchor ? runAnchorMemoId(runId) : paymentMemoId(firstId!),
       fromBlock: latest > DOUBLE_PAY_LOOKBACK ? latest - DOUBLE_PAY_LOOKBACK : 0n,
       toBlock: latest,
     });
@@ -220,6 +229,9 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
 
       {tab === "send" && (
         <>
+          {requested.expired && (
+            <Notice tone="error">This payment request has expired. Ask the payee for a fresh link rather than paying from an old one.</Notice>
+          )}
           {requested.instruction && (
             <Notice>
               This link is a payment request for <b>{requested.instruction.amount} {requested.instruction.token}</b> to{" "}
@@ -287,7 +299,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
           )}
           {priorRun && priorRun.length > 0 && (
             <Notice tone="error">
-              Run <span className="font-mono text-xs">{runId}</span> was already anchored on {network.name} by this wallet in{" "}
+              {anchor ? "Run" : "Payment"} <span className="font-mono text-xs">{anchor ? runId : instructions[0]?.EndToEndId}</span> was already {anchor ? "anchored" : "sent with a memo"} on {network.name} by this wallet in{" "}
               {priorRun.map((m) => <ExternalLink key={m.txHash} href={txUrl(network, m.txHash)} className="font-mono text-xs">{shortHash(m.txHash)}</ExternalLink>)}.
               Not sending again. Change the run id if this is genuinely a new run.
             </Notice>
@@ -372,7 +384,9 @@ function RequestForm({ networkId, setNetworkId }: { networkId: NetworkId; setNet
 
   const valid = isAddress(to) && /^\d+(\.\d{1,6})?$/.test(amount) && Number(amount) > 0 && id.trim().length > 0;
   const base = `${window.location.origin}${window.location.pathname}`;
-  const url = valid ? buildPaymentRequestUrl(base, { network: networkId, to, amount, id: id.trim(), run: run.trim() || undefined, ref: ref.trim() || undefined, purp: purp.trim() || undefined }) : "";
+  const [days, setDays] = useState("30");
+  const expiresAt = Number(days) > 0 ? Date.now() / 1000 + Number(days) * 86400 : undefined;
+  const url = valid ? buildPaymentRequestUrl(base, { network: networkId, to, amount, id: id.trim(), run: run.trim() || undefined, ref: ref.trim() || undefined, purp: purp.trim() || undefined, expiresAt }) : "";
   const receivable: PayoutInstruction | null = valid ? { EndToEndId: id.trim(), direction: "in", recipient: to as Address, amount, token: "USDC", Purp: purp || undefined, CdtrRef: ref || undefined } : null;
 
   return (
@@ -407,6 +421,10 @@ function RequestForm({ networkId, setNetworkId }: { networkId: NetworkId; setNet
         <div className="md:col-span-2">
           <span className="label">Purpose</span>
           <input className="input font-mono" value={purp} maxLength={4} onChange={(e) => setPurp(e.target.value.toUpperCase())} />
+        </div>
+        <div className="md:col-span-3">
+          <span className="label">Link valid for (days, 0 = no expiry)</span>
+          <input className="input font-mono" value={days} onChange={(e) => setDays(e.target.value.replace(/[^0-9]/g, ""))} />
         </div>
       </div>
 

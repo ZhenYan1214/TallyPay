@@ -11,7 +11,7 @@ const STEPS = [
   },
   {
     title: "Reconcile",
-    body: "Tieout reads the wallet's activity in both directions and matches it to your ledger: by memo when present, by counterparty and amount when the payer used a Safe, an MPC wallet or a plain wallet send that can't attach memos.",
+    body: "Tieout reads the wallet's activity in both directions and matches it to your ledger with three grades of evidence: the memo in the transaction, a reference published afterwards for payments a Safe or custodian sent, or counterparty and amount when the pairing is unique. Anything ambiguous is held for a person, never guessed.",
   },
   {
     title: "Verify",
@@ -35,6 +35,7 @@ const STATUSES = [
   ["Matched", "Memo, recipient, amount and token agree."],
   ["Matched by intent", "No memo, but recipient, amount and token match an open entry."],
   ["Mismatch", "The memo points to an entry, but the details differ."],
+  ["Ambiguous", "No memo and more than one way to pair. Held for a person."],
   ["Not paid", "The ledger expects a payment that never happened."],
   ["Duplicate", "The same entry was paid twice."],
   ["Unexpected", "Money left the wallet with no ledger entry."],
@@ -130,7 +131,7 @@ export default function Overview() {
           </dl>
         </div>
         <div>
-          <h2 className="text-xl font-semibold">Six outcomes, nothing silent</h2>
+          <h2 className="text-xl font-semibold">Seven outcomes, nothing silent</h2>
           <p className="mt-1 text-sm text-slate-600">Every ledger entry and every outgoing transfer ends up in exactly one bucket.</p>
           <div className="card mt-4 divide-y divide-slate-100">
             {STATUSES.map(([name, body]) => (

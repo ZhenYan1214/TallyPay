@@ -3,6 +3,8 @@ import type { PayoutInstruction, PayoutRunLedger, TokenSymbol } from "@tieout/sd
 export type LoadedLedger = PayoutRunLedger & {
   /** Frozen chain scan to fall back on when the public RPC fails (demos only). */
   snapshotUrl?: string;
+  /** EOAs that publish on-chain references for this wallet's payments (e.g. an ops wallet attesting a Safe's payouts). */
+  memoSigners?: string[];
   scan?: { fromBlock: string; toBlock: string };
   scenario?: Record<string, string>;
 };

@@ -131,14 +131,14 @@ export default function Verify() {
           {results.length === 0 && (
             <Notice tone="warn">
               No Memo event with this memoId in the scanned range. Widen the block range, check the network, or the payment may have been sent without a memo
-              (a Safe or MPC wallet cannot call Memo). The Reconcile page can still match it by recipient and amount.
+              (a Safe or MPC wallet cannot call Memo). The Reconcile page can still match it by counterparty and amount, and can publish a reference for it afterwards so this lookup works next time.
             </Notice>
           )}
           {results.map((r) => (
             <div key={`${r.txHash}:${r.logIndex}`} className="card space-y-3 p-5">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ring-1 ring-inset ${r.transfer ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-amber-50 text-amber-800 ring-amber-200"}`}>
-                  {r.transfer ? "Memo and transfer linked by callDataHash" : "Memo found, no token transfer under it"}
+                  {r.transfer ? "Memo and transfer linked by callDataHash" : r.decoded.kind === "reference" ? "Reference memo (points at another transaction)" : "Memo found, no token transfer under it"}
                 </span>
                 <span className="text-slate-600">{new Date(r.timestamp * 1000).toISOString().replace("T", " ").slice(0, 19)} UTC · block {r.blockNumber.toString()}</span>
                 <ExternalLink href={txUrl(network, r.txHash)} className="font-mono text-xs">{shortHash(r.txHash)}</ExternalLink>
@@ -155,6 +155,17 @@ export default function Verify() {
                     <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-xs">
                       {Object.entries(r.decoded.anchor).map(([k, v]) => (<Fragment key={k}><dt className="text-slate-500">{k}</dt><dd className="break-all">{String(v)}</dd></Fragment>))}
                     </dl>
+                  )}
+                  {r.decoded.kind === "reference" && (
+                    <div className="space-y-1 text-xs">
+                      <div className="rounded-full bg-sky-50 px-2 py-0.5 text-sky-800 ring-1 ring-sky-200 ring-inset inline-block">Reference published after the fact</div>
+                      <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono">
+                        <dt className="text-slate-500">EndToEndId</dt><dd>{r.decoded.reference.EndToEndId}</dd>
+                        <dt className="text-slate-500">TxHash</dt><dd className="break-all"><ExternalLink href={txUrl(network, r.decoded.reference.TxHash)}>{r.decoded.reference.TxHash}</ExternalLink></dd>
+                        {r.decoded.reference.PmtInfId && (<><dt className="text-slate-500">PmtInfId</dt><dd>{r.decoded.reference.PmtInfId}</dd></>)}
+                      </dl>
+                      <div className="font-sans text-slate-600">The transfer itself sits in the referenced transaction; it was sent by a wallet that could not call Memo (Safe, custodian, plain send). The reference was signed by {shortHash(r.sender)}.</div>
+                    </div>
                   )}
                   {r.decoded.kind === "unknown" && <div className="font-mono text-xs break-all">{r.decoded.text}</div>}
                 </div>

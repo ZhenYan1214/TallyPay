@@ -5,6 +5,7 @@ const STATUS_STYLE: Record<ReconStatus, { label: string; className: string }> = 
   matched: { label: "Matched", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
   matched_by_intent: { label: "Matched by intent", className: "bg-sky-50 text-sky-700 ring-sky-200" },
   mismatch: { label: "Mismatch", className: "bg-amber-50 text-amber-800 ring-amber-200" },
+  ambiguous: { label: "Ambiguous", className: "bg-violet-50 text-violet-800 ring-violet-200" },
   missing: { label: "Not paid", className: "bg-slate-100 text-slate-700 ring-slate-300" },
   duplicate: { label: "Duplicate", className: "bg-rose-50 text-rose-700 ring-rose-200" },
   unexpected: { label: "Unexpected", className: "bg-rose-50 text-rose-700 ring-rose-200" },
@@ -13,7 +14,8 @@ const STATUS_STYLE: Record<ReconStatus, { label: string; className: string }> = 
 export const STATUS_HELP: Record<ReconStatus, string> = {
   matched: "Memo, recipient, amount and token agree with the ledger.",
   matched_by_intent: "No memo (e.g. sent from a Safe or MPC wallet, or a plain wallet send), but counterparty, token and amount match a ledger entry.",
-  mismatch: "The memo points to a ledger entry, but the amount, recipient or token differ.",
+  mismatch: "The memo or reference points to a ledger entry, but the amount, counterparty, token or direction differ.",
+  ambiguous: "No memo, and more than one way to pair this with the ledger. Tieout never guesses: attach references or settle by hand.",
   missing: "The ledger expects this payment, but no transfer was found.",
   duplicate: "This ledger entry was paid more than once.",
   unexpected: "Money moved and the ledger has no entry for it.",

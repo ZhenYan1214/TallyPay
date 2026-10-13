@@ -1,6 +1,20 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { formatUnits, isAddress, type Address } from "viem";
-import { NETWORKS, fromUnits, observeAccount, parseActivity, txUrl, addressUrl, type AccountActivity, type NetworkId } from "@tieout/sdk";
+import { createWalletClient, custom, formatUnits, isAddress, type Address, type Hex } from "viem";
+import {
+  MIN_MAX_FEE_PER_GAS,
+  NETWORKS,
+  addressUrl,
+  blockRangeForDates,
+  buildReferenceBatch,
+  fromUnits,
+  observeAccount,
+  parseActivity,
+  serializeActivity,
+  toViemChain,
+  txUrl,
+  type AccountActivity,
+  type NetworkId,
+} from "@tieout/sdk";
 import {
   buildJournal,
   camt054Xml,
@@ -11,12 +25,13 @@ import {
   reconcile,
   xeroManualJournalCsv,
   type JournalEntry,
+  type ReconItem,
   type ReconReport,
   type ReconStatus,
 } from "@tieout/recon";
 import { AnchorBadge, ExternalLink, Notice, Stat, StatusBadge, STATUS_HELP } from "../components/ui.tsx";
 import { hashFlags } from "../App.tsx";
-import { publicClientFor } from "../lib/chain.ts";
+import { ensureNetwork, injectedProvider, publicClientFor } from "../lib/chain.ts";
 import { download, readLedgerFile, shortHash, type LoadedLedger } from "../lib/ledger-io.ts";
 
 /** Demo ledgers shipped with the app. Mainnet first: that is the one reviewers should see. */
@@ -33,6 +48,7 @@ interface Result {
   journal: JournalEntry[];
   networkId: NetworkId;
   source: Source;
+  ledgers: LoadedLedger[];
 }
 
 type Tab = "items" | "journal" | "export";
@@ -47,6 +63,13 @@ async function headOk(url: string): Promise<boolean> {
   }
 }
 
+function parseAddresses(text: string): Address[] {
+  return text
+    .split(/[\s,;]+/)
+    .map((a) => a.trim())
+    .filter((a): a is Address => isAddress(a));
+}
+
 export default function Console({
   handoff,
   onHandoffUsed,
@@ -56,12 +79,15 @@ export default function Console({
 }) {
   const [networkId, setNetworkId] = useState<NetworkId>("arc-mainnet");
   const [account, setAccount] = useState("");
-  const [ledger, setLedger] = useState<LoadedLedger | null>(null);
+  const [ledgers, setLedgers] = useState<LoadedLedger[]>([]);
   const [fromBlock, setFromBlock] = useState("");
   const [toBlock, setToBlock] = useState("");
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+  const [memoSigners, setMemoSigners] = useState("");
   const [availableDemos, setAvailableDemos] = useState<NetworkId[] | null>(null);
   const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState<string>("");
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [tab, setTab] = useState<Tab>("items");
@@ -76,28 +102,38 @@ export default function Console({
 
   // "#/console?demo" loads the best available demo and reconciles it immediately.
   useEffect(() => {
-    if (!autoDemo.current || !availableDemos || ledger) return;
+    if (!autoDemo.current || !availableDemos || ledgers.length) return;
     const first = availableDemos[0];
     if (!first) return;
     autoDemo.current = false;
-    void loadDemo(first).then((l) => l && run(l));
+    void loadDemo(first).then((l) => l && run([l]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [availableDemos]);
 
-  function applyLedger(l: LoadedLedger) {
-    setLedger(l);
-    if (l.network) setNetworkId(l.network);
-    if (l.payer) setAccount(l.payer);
-    setFromBlock(l.scan?.fromBlock ?? l.execution?.blockNumber ?? "");
-    setToBlock(l.scan?.toBlock ?? l.execution?.blockNumber ?? "");
+  /** Replace or extend the loaded ledgers. Everything scanned must belong to one wallet on one network. */
+  function applyLedgers(next: LoadedLedger[], mode: "replace" | "append") {
+    const all = mode === "replace" ? next : [...ledgers, ...next];
+    const first = all[0];
+    if (!first) return;
+    setLedgers(all);
+    if (first.network) setNetworkId(first.network);
+    if (first.payer) setAccount(first.payer);
+    const froms = all.map((l) => l.scan?.fromBlock ?? l.execution?.blockNumber).filter((x): x is string => !!x).map(BigInt);
+    const tos = all.map((l) => l.scan?.toBlock ?? l.execution?.blockNumber).filter((x): x is string => !!x).map(BigInt);
+    setFromBlock(froms.length ? froms.reduce((a, b) => (a < b ? a : b)).toString() : "");
+    setToBlock(tos.length ? tos.reduce((a, b) => (a > b ? a : b)).toString() : "");
+    setFromDate("");
+    setToDate("");
+    const signers = all.flatMap((l) => l.memoSigners ?? []);
+    if (signers.length) setMemoSigners(signers.join(", "));
     setResult(null);
     setError(null);
   }
 
   useEffect(() => {
     if (!handoff) return;
-    applyLedger(handoff.ledger);
-    if (handoff.autorun) void run(handoff.ledger);
+    applyLedgers([handoff.ledger], "replace");
+    if (handoff.autorun) void run([handoff.ledger]);
     onHandoffUsed();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [handoff]);
@@ -107,7 +143,7 @@ export default function Console({
       const demo = DEMOS.find((d) => d.id === id)!;
       const res = await fetch(demo.file);
       const l = { ...((await res.json()) as LoadedLedger), snapshotUrl: demo.snapshot };
-      applyLedger(l);
+      applyLedgers([l], "replace");
       return l;
     } catch (e) {
       setError(`Could not load demo: ${(e as Error).message}`);
@@ -118,7 +154,7 @@ export default function Console({
   async function onFile(file: File) {
     try {
       const parsed = await readLedgerFile(file);
-      applyLedger({
+      const l: LoadedLedger = {
         PmtInfId: parsed.PmtInfId ?? file.name.replace(/\.[^.]+$/, ""),
         network: parsed.network ?? networkId,
         payer: (parsed.payer ?? account) as Address,
@@ -127,30 +163,47 @@ export default function Console({
         execution: parsed.execution,
         scan: parsed.scan,
         description: parsed.description,
-      });
+        memoSigners: parsed.memoSigners,
+      };
+      if (ledgers.length && ledgers.some((x) => x.PmtInfId === l.PmtInfId)) throw new Error(`A ledger with run id ${l.PmtInfId} is already loaded`);
+      if (ledgers.length && ledgers[0]!.payer && l.payer && ledgers[0]!.payer.toLowerCase() !== l.payer.toLowerCase()) {
+        throw new Error("All ledgers in one reconciliation must belong to the same wallet");
+      }
+      applyLedgers([l], ledgers.length ? "append" : "replace");
     } catch (e) {
       setError(`Could not read ledger: ${(e as Error).message}`);
     }
   }
 
-  async function run(override?: LoadedLedger) {
-    const l = override ?? ledger;
-    const net = override?.network ?? networkId;
-    const acct = override?.payer ?? account;
+  async function run(override?: LoadedLedger[], extraSigners: Address[] = []) {
+    const ls = override ?? ledgers;
+    const first = ls[0];
+    const net = first?.network ?? networkId;
+    const acct = first?.payer ?? account;
     setError(null);
     setResult(null);
-    if (!l) return setError("Load a ledger first.");
-    if (!isAddress(acct)) return setError("Enter the paying wallet address.");
+    if (!first) return setError("Load a ledger first.");
+    if (!isAddress(acct)) return setError("Enter the wallet address.");
+    const signers = [...parseAddresses(memoSigners), ...extraSigners];
     setRunning(true);
-    setProgress(0);
+    setProgress("");
     try {
       let activity: AccountActivity;
       let source: Source = { kind: "live" };
       try {
         const client = publicClientFor(net);
         const latest = await client.getBlockNumber();
-        const to = (override?.scan?.toBlock ?? toBlock) ? BigInt(override?.scan?.toBlock ?? toBlock) : latest;
-        const from = (override?.scan?.fromBlock ?? fromBlock) ? BigInt(override?.scan?.fromBlock ?? fromBlock) : to > 9_000n ? to - 9_000n : 0n;
+        let to: bigint;
+        let from: bigint;
+        const scanFrom = override ? first.scan?.fromBlock : fromBlock;
+        const scanTo = override ? first.scan?.toBlock : toBlock;
+        if (!override && fromDate && toDate && !scanFrom && !scanTo) {
+          setProgress("finding blocks for dates…");
+          ({ fromBlock: from, toBlock: to } = await blockRangeForDates(client, fromDate, toDate));
+        } else {
+          to = scanTo ? BigInt(scanTo) : latest;
+          from = scanFrom ? BigInt(scanFrom) : to > 9_000n ? to - 9_000n : 0n;
+        }
         if (from > to) throw new Error("From block must not be after to block");
         if (to - from > 200_000n) throw new Error("Range too large for a browser scan (max 200,000 blocks ≈ 28 hours on mainnet)");
         activity = await observeAccount({
@@ -159,20 +212,25 @@ export default function Console({
           account: acct as Address,
           fromBlock: from,
           toBlock: to,
-          onProgress: (done, total) => setProgress(Number((done * 100n) / (total || 1n))),
+          memoSenders: signers,
+          onProgress: (done, total) => setProgress(`${Number((done * 100n) / (total || 1n))}%`),
         });
       } catch (liveError) {
         // Demos ship a frozen scan so the page still works when the public RPC is down.
-        if (!l.snapshotUrl) throw liveError;
-        const res = await fetch(l.snapshotUrl);
+        if (!first.snapshotUrl) throw liveError;
+        const res = await fetch(first.snapshotUrl);
         if (!res.ok) throw liveError;
         const snap = parseActivity(await res.text());
         activity = snap.activity;
         const err = liveError as { shortMessage?: string; message: string };
         source = { kind: "snapshot", takenAt: snap.takenAt, reason: (err.shortMessage ?? err.message).split(/\r?\n/)[0]! };
       }
-      const report = reconcile([{ PmtInfId: l.PmtInfId, instructions: l.instructions }], activity);
-      setResult({ report, activity, journal: buildJournal(report, activity.fees), networkId: net, source });
+      const report = reconcile(
+        ls.map((l) => ({ PmtInfId: l.PmtInfId, instructions: l.instructions })),
+        activity,
+        { trustedReferenceSigners: [acct as Address, ...signers] },
+      );
+      setResult({ report, activity, journal: buildJournal(report, activity.fees), networkId: net, source, ledgers: ls });
       setTab("items");
       setFilter("all");
     } catch (e) {
@@ -181,6 +239,8 @@ export default function Console({
       setRunning(false);
     }
   }
+
+  const totalEntries = ledgers.reduce((s, l) => s + l.instructions.length, 0);
 
   return (
     <div className="space-y-6">
@@ -195,21 +255,29 @@ export default function Console({
         <div className="md:col-span-12 flex flex-wrap items-center gap-2">
           {availableDemos === null && <span className="text-sm text-slate-500">Checking for demo ledgers…</span>}
           {availableDemos?.map((id) => (
-            <button key={id} className={id === "arc-mainnet" ? "btn-primary" : "btn-secondary"} onClick={() => loadDemo(id).then((l) => l && run(l))}>
+            <button key={id} className={id === "arc-mainnet" ? "btn-primary" : "btn-secondary"} onClick={() => loadDemo(id).then((l) => l && run([l]))}>
               Run PromptBazaar demo · {NETWORKS[id].name}
             </button>
           ))}
           <label className="btn-secondary cursor-pointer">
-            Upload ledger (CSV or JSON)
+            {ledgers.length ? "Add another ledger (CSV or JSON)" : "Upload ledger (CSV or JSON)"}
             <input type="file" accept=".csv,.json" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
           </label>
-          {ledger && (
-            <span className="text-sm text-slate-600">
-              Loaded <span className="font-medium text-slate-900">{ledger.PmtInfId}</span> · {ledger.instructions.length} payments
-              {ledger.description ? ` · ${ledger.description}` : ""}
-            </span>
+          {ledgers.length > 0 && (
+            <button className="text-sm text-slate-500 underline" onClick={() => { setLedgers([]); setResult(null); }}>Clear</button>
           )}
         </div>
+        {ledgers.length > 0 && (
+          <div className="md:col-span-12 flex flex-wrap gap-2 text-sm">
+            {ledgers.map((l) => (
+              <span key={l.PmtInfId} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
+                <span className="font-medium text-slate-900">{l.PmtInfId}</span> · {l.instructions.length} entries
+                {l.description ? <span className="text-slate-500">· {l.description}</span> : null}
+              </span>
+            ))}
+            {ledgers.length > 1 && <span className="self-center text-slate-500">{totalEntries} entries across {ledgers.length} ledgers</span>}
+          </div>
+        )}
         <div className="md:col-span-3">
           <span className="label">Network</span>
           <select className="input" value={networkId} onChange={(e) => setNetworkId(e.target.value as NetworkId)}>
@@ -219,7 +287,7 @@ export default function Console({
           </select>
         </div>
         <div className="md:col-span-5">
-          <span className="label">Paying wallet</span>
+          <span className="label">Wallet</span>
           <input className="input font-mono" placeholder="0x…" value={account} onChange={(e) => setAccount(e.target.value.trim())} />
         </div>
         <div className="md:col-span-2">
@@ -230,21 +298,49 @@ export default function Console({
           <span className="label">To block</span>
           <input className="input font-mono" placeholder="latest" value={toBlock} onChange={(e) => setToBlock(e.target.value.trim())} />
         </div>
+        <div className="md:col-span-3">
+          <span className="label">Or from date (UTC)</span>
+          <input className="input font-mono" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setFromBlock(""); setToBlock(""); }} />
+        </div>
+        <div className="md:col-span-3">
+          <span className="label">To date (UTC)</span>
+          <input className="input font-mono" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setFromBlock(""); setToBlock(""); }} />
+        </div>
+        <div className="md:col-span-6">
+          <span className="label">Reference signers (optional)</span>
+          <input
+            className="input font-mono"
+            placeholder="0x… EOAs that publish references for this wallet's payments, e.g. your ops wallet"
+            value={memoSigners}
+            onChange={(e) => setMemoSigners(e.target.value)}
+          />
+        </div>
         <div className="md:col-span-12 flex items-center gap-4">
-          <button className="btn-primary" disabled={running || !ledger} onClick={() => run()}>
-            {running ? `Scanning Arc… ${progress}%` : "Reconcile"}
+          <button className="btn-primary" disabled={running || !ledgers.length} onClick={() => run()}>
+            {running ? `Scanning Arc… ${progress}` : "Reconcile"}
           </button>
-          {running && (
-            <div className="h-1.5 w-48 overflow-hidden rounded-full bg-slate-200">
-              <div className="h-full bg-slate-900 transition-all" style={{ width: `${progress}%` }} />
-            </div>
-          )}
+          <span className="text-xs text-slate-500">
+            Dates are turned into block numbers by binary search; leave both empty to scan the ledger's own range or the last 9,000 blocks.
+          </span>
         </div>
       </section>
 
       {error && <Notice tone="error">{error}</Notice>}
-      {ledger?.scenario && <ScenarioGuide ledger={ledger} />}
-      {result && <Results result={result} tab={tab} setTab={setTab} filter={filter} setFilter={setFilter} />}
+      {ledgers[0]?.scenario && <ScenarioGuide ledger={ledgers[0]} />}
+      {result && (
+        <Results
+          result={result}
+          tab={tab}
+          setTab={setTab}
+          filter={filter}
+          setFilter={setFilter}
+          onReferencesPublished={(signer) => {
+            const current = parseAddresses(memoSigners);
+            if (!current.some((a) => a.toLowerCase() === signer.toLowerCase())) setMemoSigners([...current, signer].join(", "));
+            void run(undefined, [signer]);
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -254,9 +350,12 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
   const network = NETWORKS[ledger.network];
   const s = ledger.scenario ?? {};
   const tx = (hash?: string) => (hash ? <ExternalLink href={txUrl(network, hash)} className="font-mono text-xs">{shortHash(hash)}</ExternalLink> : null);
-  const rows: Array<{ what: string; expect: ReconStatus | "anchor"; link?: string; id?: string }> = [
+  const rows: Array<{ what: string; expect: ReconStatus; link?: string; id?: string }> = [
     { what: "Ten sellers paid in one batch, each with an ISO 20022 memo and a run anchor", expect: "matched", link: s.batchTx },
     { what: "One seller paid by a plain transfer with no memo, as a Safe or MPC wallet would", expect: "matched_by_intent", link: s.manualNoMemoTx },
+    ...(s.referenceTx
+      ? [{ what: "One seller paid by a plain transfer, then the operations wallet published an on-chain reference for it", expect: "matched" as const, link: s.referenceTx }]
+      : []),
     { what: "One seller on hold, never paid", expect: "missing", id: s.onHold },
     { what: "A ledger amount edited after the run; the on-chain anchor pinpoints which entry changed", expect: "mismatch", id: s.editedAfterRun },
     { what: "Treasury sent funds to an address the ledger does not know", expect: "unexpected", link: s.unrecordedTx },
@@ -279,7 +378,7 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
             <span className="text-slate-700">{r.what}{r.id ? <span className="ml-1 font-mono text-xs text-slate-500">{r.id}</span> : null}</span>
             <span className="flex items-center gap-3">
               {tx(r.link)}
-              {r.expect === "anchor" ? <AnchorBadge status="mismatch" /> : <StatusBadge status={r.expect} />}
+              <StatusBadge status={r.expect} />
             </span>
           </li>
         ))}
@@ -288,27 +387,63 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
   );
 }
 
+/** Everything needed to re-run and re-check this reconciliation later, in one file. */
+function auditBundle(result: Result): string {
+  const { report, activity, ledgers, networkId, source } = result;
+  const bigint = (_k: string, v: unknown) => (typeof v === "bigint" ? v.toString() : v);
+  const body = {
+    tieout: { version: 1, generatedAt: report.generatedAt, network: networkId, account: report.account, source },
+    ledgers: ledgers.map(({ snapshotUrl: _s, ...l }) => l),
+    activity: JSON.parse(serializeActivity(activity, new Date(report.generatedAt))).activity,
+    report: {
+      summary: report.summary,
+      anchors: report.anchors,
+      rollForward: report.rollForward,
+      ignoredIncoming: report.ignoredIncoming,
+      items: report.items.map((i) => ({
+        status: i.status,
+        direction: i.direction,
+        evidence: i.evidence,
+        EndToEndId: i.instruction?.EndToEndId,
+        PmtInfId: i.instruction?.PmtInfId,
+        txHash: i.transfer?.txHash,
+        logIndex: i.transfer?.logIndex,
+        amount: i.transfer ? fromUnits(i.transfer.amount) : undefined,
+        varianceUnits: i.varianceUnits,
+        reference: i.reference ? { txHash: i.reference.txHash, sender: i.reference.sender } : undefined,
+        candidates: i.candidates?.map((c) => c.txHash),
+        candidateIds: i.candidateIds,
+        notes: i.notes,
+      })),
+    },
+  };
+  return JSON.stringify(body, bigint, 2) + "\n";
+}
+
 function Results({
   result,
   tab,
   setTab,
   filter,
   setFilter,
+  onReferencesPublished,
 }: {
   result: Result;
   tab: Tab;
   setTab: (t: Tab) => void;
   filter: Filter;
   setFilter: (f: Filter) => void;
+  onReferencesPublished: (signer: Address) => void;
 }) {
   const { report, activity, journal, source } = result;
   const network = NETWORKS[result.networkId];
   const s = report.summary;
-  const exceptions = s.mismatch + s.missing + s.duplicate + s.unexpected;
+  const exceptions = s.mismatch + s.ambiguous + s.missing + s.duplicate + s.unexpected;
   const items = useMemo(
     () => report.items.filter((i) => (filter === "all" ? true : filter === "exceptions" ? isException(i.status) : i.status === filter)),
     [report, filter],
   );
+  const intentItems = report.items.filter((i) => i.status === "matched_by_intent" && i.transfer && i.instruction);
 
   return (
     <div className="space-y-6">
@@ -320,11 +455,16 @@ function Results({
       )}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Expected" value={`${fromUnits(s.expectedUnits)}`} hint={`${report.items.filter((i) => i.instruction).length} ledger entries · USDC`} />
-        <Stat label="Settled" tone="good" value={`${fromUnits(s.settledUnits)}`} hint={`${s.matched} by memo · ${s.matched_by_intent} by intent`} />
+        <Stat
+          label="Settled"
+          tone="good"
+          value={`${fromUnits(s.settledUnits)}`}
+          hint={`${s.byEvidence.memo} by memo · ${s.byEvidence.reference} by reference · ${s.byEvidence.intent} by intent`}
+        />
         <Stat label="Exceptions" tone={exceptions ? "bad" : "good"} value={exceptions} hint={`${fromUnits(s.exceptionUnits)} USDC needs review`} />
         <Stat label="Network fees" value={formatUnits(report.feesWei, 18).slice(0, 10)} hint={`USDC across ${activity.fees.length} transaction${activity.fees.length === 1 ? "" : "s"}`} />
         <div className="card p-4">
-          <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Run anchor</div>
+          <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Run anchor{report.anchors.length === 1 ? "" : "s"}</div>
           <div className="mt-2 space-y-1">
             {report.anchors.map((a) => (
               <div key={a.PmtInfId} className="space-y-1">
@@ -378,10 +518,12 @@ function Results({
         </Notice>
       )}
 
+      {intentItems.length > 0 && <AttachReferences items={intentItems} networkId={result.networkId} onPublished={onReferencesPublished} />}
+
       <div className="text-xs text-slate-500">
         {source.kind === "live" ? "Scanned" : "Snapshot of"} blocks {activity.fromBlock.toString()}–{activity.toBlock.toString()} on {network.name} for{" "}
         <ExternalLink href={addressUrl(network, activity.account)} className="font-mono">{shortHash(activity.account)}</ExternalLink> ·{" "}
-        {activity.transfers.length} transfers · {activity.anchors.length} anchors
+        {activity.transfers.length} transfers · {activity.anchors.length} anchor{activity.anchors.length === 1 ? "" : "s"} · {activity.references.length} reference{activity.references.length === 1 ? "" : "s"}
       </div>
 
       <div className="flex gap-1 border-b border-slate-200">
@@ -399,7 +541,7 @@ function Results({
       {tab === "items" && (
         <section className="space-y-3">
           <div className="flex flex-wrap gap-2 text-sm">
-            {(["all", "exceptions", "matched", "matched_by_intent", "mismatch", "missing", "duplicate", "unexpected"] as Filter[]).map((f) => {
+            {(["all", "exceptions", "matched", "matched_by_intent", "mismatch", "ambiguous", "missing", "duplicate", "unexpected"] as Filter[]).map((f) => {
               const count = f === "all" ? report.items.length : f === "exceptions" ? exceptions : s[f];
               if (f !== "all" && f !== "exceptions" && count === 0) return null;
               return (
@@ -436,8 +578,8 @@ function Results({
                         <div className={`mt-0.5 text-[11px] ${item.direction === "in" ? "text-emerald-700" : "text-slate-400"}`}>{item.direction === "in" ? "money in" : "money out"}</div>
                       </td>
                       <td className="px-4 py-3 align-top font-mono text-xs">
-                        {item.instruction?.EndToEndId ?? (t?.memo?.decoded.kind === "payment" ? t.memo.decoded.memo.EndToEndId : "—")}
-                        {t?.memo ? <div className="mt-0.5 font-sans text-[11px] text-emerald-700">memo on-chain</div> : t ? <div className="mt-0.5 font-sans text-[11px] text-slate-400">{t.native ? "native send, no memo" : "no memo"}</div> : null}
+                        {item.instruction?.EndToEndId ?? (t?.memo?.decoded.kind === "payment" ? t.memo.decoded.memo.EndToEndId : item.candidateIds ? item.candidateIds.join(" / ") : "—")}
+                        <EvidenceLabel item={item} />
                       </td>
                       <td className="px-4 py-3 align-top">
                         {item.instruction?.payeeName ?? <span className="text-slate-400">Unknown</span>}
@@ -446,7 +588,11 @@ function Results({
                       <td className="px-4 py-3 text-right align-top tabular-nums">{item.instruction ? item.instruction.amount : "—"}</td>
                       <td className="px-4 py-3 text-right align-top tabular-nums">{t ? fromUnits(t.amount) : "—"}</td>
                       <td className="px-4 py-3 align-top font-mono text-xs">
-                        {t ? <ExternalLink href={txUrl(network, t.txHash)}>{shortHash(t.txHash)}</ExternalLink> : "—"}
+                        {t ? <ExternalLink href={txUrl(network, t.txHash)}>{shortHash(t.txHash)}</ExternalLink> : item.candidates ? (
+                          <div className="space-y-0.5">
+                            {item.candidates.map((c) => <div key={`${c.txHash}:${c.logIndex}`}><ExternalLink href={txUrl(network, c.txHash)}>{shortHash(c.txHash)}</ExternalLink></div>)}
+                          </div>
+                        ) : "—"}
                       </td>
                       <td className="px-4 py-3 align-top text-xs text-slate-600">{item.notes.join("; ")}</td>
                     </tr>
@@ -461,7 +607,7 @@ function Results({
       {tab === "journal" && (
         <section className="space-y-3">
           <Notice tone="warn">
-            Templates for an accountant to review. Cleared payouts debit <b>Payouts payable</b>; exceptions go to <b>Suspense</b> until resolved; network fees are booked once per day.
+            Templates for an accountant to review. Cleared payouts debit <b>Payouts payable</b>, cleared receipts credit <b>Receivables</b>; exceptions go to <b>Suspense</b> until resolved; network fees are booked once per day.
           </Notice>
           <div className="card overflow-x-auto">
             <table className="w-full text-left text-sm">
@@ -497,6 +643,12 @@ function Results({
       {tab === "export" && (
         <section className="grid gap-4 md:grid-cols-3">
           <ExportCard
+            title="Audit bundle (JSON)"
+            body="Ledgers, the full chain scan and every reconciliation decision in one file. Anyone with a public RPC can re-run it and get the same answer."
+            label="Download JSON"
+            onClick={() => download(`tieout-audit-${report.account.slice(2, 8)}-${report.generatedAt.slice(0, 10)}.json`, auditBundle(result), "application/json")}
+          />
+          <ExportCard
             title="Reconciliation report"
             body="One row per payment and exception, with explorer links. For review and audit files."
             onClick={() => download(`tieout-reconciliation-${report.account.slice(2, 8)}.csv`, reconReportCsv(report, network.explorerUrl))}
@@ -528,8 +680,82 @@ function Results({
   );
 }
 
+function EvidenceLabel({ item }: { item: ReconItem }) {
+  const t = item.transfer;
+  if (!t) return null;
+  if (item.evidence === "memo" || t.memo?.decoded.kind === "payment") return <div className="mt-0.5 font-sans text-[11px] text-emerald-700">memo on-chain</div>;
+  if (item.evidence === "reference") return <div className="mt-0.5 font-sans text-[11px] text-emerald-700">reference on-chain</div>;
+  return <div className="mt-0.5 font-sans text-[11px] text-slate-400">{t.native ? "native send, no memo" : "no memo"}</div>;
+}
+
+/**
+ * Turns weak evidence into strong evidence: publishes one reference memo per
+ * intent-matched item, signed by whatever EOA is connected. The references
+ * share the payment memoIds, so from then on the Verify page, auditors and
+ * every future reconciliation find these payments by their ids.
+ */
+function AttachReferences({ items, networkId, onPublished }: { items: ReconItem[]; networkId: NetworkId; onPublished: (signer: Address) => void }) {
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [sent, setSent] = useState<{ hash: Hex; signer: Address } | null>(null);
+  const network = NETWORKS[networkId];
+
+  async function publish() {
+    setError(null);
+    const provider = injectedProvider();
+    if (!provider) return setError("No browser wallet found. Install MetaMask, Rabby or another EIP-1193 wallet.");
+    try {
+      setBusy("Connecting…");
+      const [signer] = (await provider.request({ method: "eth_requestAccounts" })) as Address[];
+      if (!signer) throw new Error("No account");
+      await ensureNetwork(provider, networkId);
+      const plan = buildReferenceBatch({
+        network,
+        signer,
+        references: items.map((i) => ({ EndToEndId: i.instruction!.EndToEndId, TxHash: i.transfer!.txHash, PmtInfId: i.instruction!.PmtInfId })),
+      });
+      const client = publicClientFor(networkId);
+      await client.call({ account: signer, to: plan.to, data: plan.data });
+      setBusy("Waiting for wallet signature…");
+      const wallet = createWalletClient({ chain: toViemChain(network), transport: custom(provider), account: signer });
+      const hash = await wallet.sendTransaction({ to: plan.to, data: plan.data, maxFeePerGas: MIN_MAX_FEE_PER_GAS * 3n, maxPriorityFeePerGas: 1_000_000_000n });
+      setBusy("Confirming on Arc…");
+      const receipt = await client.waitForTransactionReceipt({ hash });
+      if (receipt.status !== "success") throw new Error("Transaction reverted");
+      setSent({ hash, signer });
+    } catch (e) {
+      setError((e as { shortMessage?: string }).shortMessage ?? (e as Error).message);
+    } finally {
+      setBusy(null);
+    }
+  }
+
+  return (
+    <section className="card flex flex-wrap items-center justify-between gap-3 p-4">
+      <div className="text-sm">
+        <div className="font-medium">{items.length} payment{items.length === 1 ? "" : "s"} matched by intent only</div>
+        <div className="text-xs text-slate-600">
+          Publish on-chain references for them from any EOA (your ops wallet, for example). Each reference names the transaction and the EndToEndId, shares the
+          payment's memoId, and costs about the same as one transfer. From then on these are first-class evidence, findable by id.
+        </div>
+        {error && <div className="mt-1 text-xs text-rose-700">{error}</div>}
+        {sent && (
+          <div className="mt-1 text-xs text-emerald-700">
+            Published in <ExternalLink href={txUrl(network, sent.hash)} className="font-mono">{shortHash(sent.hash)}</ExternalLink> by {shortHash(sent.signer)}.
+          </div>
+        )}
+      </div>
+      {sent ? (
+        <button className="btn-primary" onClick={() => onPublished(sent.signer)}>Re-run with this signer trusted</button>
+      ) : (
+        <button className="btn-secondary" disabled={!!busy} onClick={publish}>{busy ?? `Attach ${items.length} reference${items.length === 1 ? "" : "s"} on-chain`}</button>
+      )}
+    </section>
+  );
+}
+
 function StatusLabel({ status }: { status: ReconStatus }) {
-  return <>{{ matched: "Matched", matched_by_intent: "By intent", mismatch: "Mismatch", missing: "Not paid", duplicate: "Duplicate", unexpected: "Unexpected" }[status]}</>;
+  return <>{{ matched: "Matched", matched_by_intent: "By intent", mismatch: "Mismatch", ambiguous: "Ambiguous", missing: "Not paid", duplicate: "Duplicate", unexpected: "Unexpected" }[status]}</>;
 }
 
 function ExportCard({ title, body, onClick, label = "Download CSV" }: { title: string; body: string; onClick: () => void; label?: string }) {
