@@ -20,7 +20,8 @@
     "gas": "tsx scripts/gas-report.ts",
     "snapshot": "tsx scripts/snapshot-demo.ts",
     "build:packages": "npm run build --workspace @tieout/sdk && npm run build --workspace @tieout/recon",
-    "build": "npm run build:packages && npm run build --workspace @tieout/web"
+    "build": "npm run build:packages && npm run build --workspace @tieout/web",
+    "verify-bundle": "tsx scripts/verify-bundle.ts"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",
