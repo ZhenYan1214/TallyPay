@@ -235,9 +235,9 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
           )
         }
         aside={
-          <div className="flex gap-0.5 rounded-xl bg-slate-100/80 p-1 text-sm">
+          <div className="flex gap-0.5 rounded-lg border border-slate-200 bg-slate-50 p-0.5 text-[13.5px]">
             {(["send", "request"] as Tab[]).map((t) => (
-              <button key={t} onClick={() => setTab(t)} className={`rounded-lg px-3 py-1.5 font-medium transition ${tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>
+              <button key={t} onClick={() => setTab(t)} className={`rounded-md px-3 py-1.5 font-medium transition-colors ${tab === t ? "bg-white text-slate-900 shadow-[var(--shadow-hair)] ring-1 ring-slate-200" : "text-slate-600 hover:text-slate-900"}`}>
                 {t === "send" ? "Send a run" : "Request a payment"}
               </button>
             ))}

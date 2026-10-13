@@ -135,7 +135,7 @@ export default function Verify() {
           {results.map((r) => (
             <div key={`${r.txHash}:${r.logIndex}`} className="card space-y-3 p-5">
               <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                <span className={`stamp tracking-[0.02em] normal-case ${r.transfer ? "bg-emerald-50/60 text-emerald-700" : "bg-amber-50/70 text-amber-700"}`}>
+                <span className={`rounded-md px-1.5 py-0.5 text-[12px] font-medium ring-1 ring-inset ${r.transfer ? "bg-emerald-50 text-emerald-700 ring-emerald-600/15" : "bg-amber-50 text-amber-800 ring-amber-600/20"}`}>
                   {r.transfer ? "Memo and transfer linked by callDataHash" : r.decoded.kind === "reference" ? "Reference memo (points at another transaction)" : "Memo found, no token transfer under it"}
                 </span>
                 <span className="text-slate-600">{new Date(r.timestamp * 1000).toISOString().replace("T", " ").slice(0, 19)} UTC · block {r.blockNumber.toString()}</span>
@@ -156,7 +156,7 @@ export default function Verify() {
                   )}
                   {r.decoded.kind === "reference" && (
                     <div className="space-y-1 text-xs">
-                      <div className="stamp bg-sky-50/60 tracking-[0.02em] text-sky-700 normal-case">Reference published after the fact</div>
+                      <div className="inline-block rounded-md bg-sky-50 px-1.5 py-0.5 text-[12px] font-medium text-sky-700 ring-1 ring-sky-600/15 ring-inset">Reference published after the fact</div>
                       <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono">
                         <dt className="text-slate-500">EndToEndId</dt><dd>{r.decoded.reference.EndToEndId}</dd>
                         <dt className="text-slate-500">TxHash</dt><dd className="break-all"><ExternalLink href={txUrl(network, r.decoded.reference.TxHash)}>{r.decoded.reference.TxHash}</ExternalLink></dd>

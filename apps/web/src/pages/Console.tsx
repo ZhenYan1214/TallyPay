@@ -570,7 +570,7 @@ function Results({
         <Stat label="Exceptions" tone={exceptions ? "bad" : "good"} value={exceptions} hint={`${fmt(fromUnits(s.exceptionUnits))} USDC needs review`} />
         <Stat label="Network fees" value={fmt(formatUnits(report.feesWei, 18), 6)} hint={`USDC across ${activity.fees.length} transaction${activity.fees.length === 1 ? "" : "s"}`} />
         <div className="card p-4">
-          <div className="text-[11px] font-semibold tracking-[0.12em] text-slate-500 uppercase">Run anchor{report.anchors.length === 1 ? "" : "s"}</div>
+          <div className="text-[12.5px] font-medium text-slate-500">Run anchor{report.anchors.length === 1 ? "" : "s"}</div>
           <div className="mt-2 space-y-1.5">
             {report.anchors.length === 0 && <span className="text-xs text-slate-500">No ledger runs</span>}
             {report.anchors.map((a) => (
@@ -673,7 +673,7 @@ function Results({
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`nums rounded-[3px] px-2.5 py-1 font-mono text-[12px] ring-1 transition ${filter === f ? "bg-ink text-white ring-ink" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
+                  className={`nums rounded-md px-2.5 py-1 text-[13px] font-medium ring-1 transition-colors ${filter === f ? "bg-white text-slate-900 ring-slate-300 shadow-[var(--shadow-hair)]" : "text-slate-600 ring-transparent hover:bg-slate-100 hover:text-slate-900"}`}
                 >
                   {f === "all" ? "All" : f === "exceptions" ? "Exceptions" : <StatusLabel status={f} />} · {count}
                 </button>
@@ -681,16 +681,16 @@ function Results({
             })}
           </div>
           <div className="card overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="table-head">
+            <table className="w-full text-left text-[13.5px]">
+              <thead className="table-head whitespace-nowrap">
                 <tr>
-                  <th className="px-4 py-3">Status</th>
-                  <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3">Counterparty</th>
-                  <th className="px-4 py-3 text-right">Ledger</th>
-                  <th className="px-4 py-3 text-right">On-chain</th>
-                  <th className="px-4 py-3">Transaction</th>
-                  <th className="px-4 py-3">Notes</th>
+                  <th className="px-3 py-2.5 first:pl-4 font-medium">Status</th>
+                  <th className="px-3 py-2.5 first:pl-4 font-medium">Payment</th>
+                  <th className="px-3 py-2.5 first:pl-4 font-medium">Counterparty</th>
+                  <th className="px-3 py-2.5 first:pl-4 text-right font-medium">Ledger</th>
+                  <th className="px-3 py-2.5 first:pl-4 text-right font-medium">On-chain</th>
+                  <th className="px-3 py-2.5 first:pl-4 font-medium">Transaction</th>
+                  <th className="min-w-[14rem] px-3 py-2.5 pr-4 font-medium">Notes</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
@@ -698,23 +698,23 @@ function Results({
                   const t = item.transfer;
                   const decided = item.evidence === "manual" && item.instruction ? decisions.find((d) => d.EndToEndId === item.instruction!.EndToEndId) : undefined;
                   return (
-                    <tr key={idx} className={`transition hover:bg-slate-50/60 ${isException(item.status) ? "bg-rose-50/30" : ""}`}>
-                      <td className="px-4 py-3 align-top" title={STATUS_HELP[item.status]}>
+                    <tr key={idx} className={`transition-colors hover:bg-slate-50/70 ${isException(item.status) ? "shadow-[inset_2px_0_0_var(--color-rose-400)]" : ""}`}>
+                      <td className="py-3 pr-3 pl-4 align-top whitespace-nowrap" title={STATUS_HELP[item.status]}>
                         <StatusBadge status={item.status} />
-                        <div className={`mt-1 text-[11px] ${item.direction === "in" ? "text-emerald-700" : "text-slate-400"}`}>{item.direction === "in" ? "money in" : "money out"}</div>
+                        <div className={`mt-1 text-[11.5px] ${item.direction === "in" ? "text-emerald-700" : "text-slate-400"}`}>{item.direction === "in" ? "money in" : "money out"}</div>
                       </td>
-                      <td className="px-4 py-3 align-top font-mono text-xs">
+                      <td className="px-3 py-3 align-top font-mono text-[12px] whitespace-nowrap text-slate-800">
                         {item.instruction?.EndToEndId ?? (t?.memo?.decoded.kind === "payment" ? t.memo.decoded.memo.EndToEndId : item.candidateIds ? item.candidateIds.join(" / ") : "—")}
                         <EvidenceLabel item={item} />
                         {decided && <button className="mt-1 block font-sans text-[11px] text-slate-500 underline" onClick={() => onUndo(decided.EndToEndId)}>undo decision</button>}
                       </td>
-                      <td className="px-4 py-3 align-top">
+                      <td className="max-w-[12rem] px-3 py-3 align-top">
                         {item.instruction?.payeeName ?? <span className="text-slate-400">Unknown</span>}
                         <div className="mt-0.5"><Mono value={((item.direction === "in" ? (t?.from ?? item.instruction?.payer) : (t?.to ?? item.instruction?.recipient)) ?? "")} /></div>
                       </td>
-                      <td className="nums px-4 py-3 text-right align-top">{item.instruction ? fmt(item.instruction.amount) : "—"}</td>
-                      <td className="nums px-4 py-3 text-right align-top">{t ? fmt(fromUnits(t.amount)) : "—"}</td>
-                      <td className="px-4 py-3 align-top">
+                      <td className="nums px-4 py-3 text-right align-top font-mono text-[12.5px] whitespace-nowrap text-slate-800">{item.instruction ? fmt(item.instruction.amount) : "—"}</td>
+                      <td className="nums px-4 py-3 text-right align-top font-mono text-[12.5px] whitespace-nowrap text-slate-800">{t ? fmt(fromUnits(t.amount)) : "—"}</td>
+                      <td className="px-3 py-3 align-top whitespace-nowrap">
                         {t ? <Mono value={t.txHash} href={txUrl(network, t.txHash)} /> : item.candidates && item.instruction ? (
                           <div className="space-y-1.5">
                             {item.candidates.map((c) => (
@@ -731,7 +731,7 @@ function Results({
                           </div>
                         ) : "—"}
                       </td>
-                      <td className="px-4 py-3 align-top text-xs leading-relaxed text-slate-600">{item.notes.join("; ")}</td>
+                      <td className="px-3 py-3 align-top text-[12.5px] leading-relaxed text-slate-600">{item.notes.join("; ")}</td>
                     </tr>
                   );
                 })}

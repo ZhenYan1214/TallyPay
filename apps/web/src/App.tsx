@@ -46,20 +46,24 @@ export default function App() {
     window.scrollTo(0, 0);
   }, [route]);
 
+  // The reconcile view is a wide data table; everything else reads better at a narrower measure.
+  const width = route === "console" ? "max-w-[1320px]" : "max-w-6xl";
+
   return (
     <div className="flex min-h-screen flex-col">
-      <header className="sticky top-0 z-20 border-b border-slate-300/80 bg-paper/95">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 sm:px-6">
-          <button onClick={() => navigate("overview")} className="flex shrink-0 items-baseline gap-2 py-3" aria-label="Tieout home">
-            <span className="display text-[27px] leading-none">Tieout</span>
-            <span className="hidden font-mono text-[10.5px] tracking-[0.14em] text-slate-500 uppercase md:inline">for Arc</span>
+      <header className="sticky top-0 z-20 border-b border-slate-200 bg-white">
+        <div className={`mx-auto flex h-14 ${width} items-center justify-between gap-3 px-4 sm:px-6`}>
+          <button onClick={() => navigate("overview")} className="flex shrink-0 items-center gap-2.5 rounded-lg">
+            <img src="./favicon.svg" alt="" className="h-6 w-6 rounded-md" />
+            <span className="text-[16px] font-semibold tracking-[-0.02em]">Tieout</span>
+            <span className="hidden text-[13px] text-slate-400 md:inline">for Arc</span>
           </button>
-          <nav className="flex items-stretch gap-1 self-stretch overflow-x-auto overflow-y-hidden text-[14px] whitespace-nowrap [scrollbar-width:none] sm:gap-4">
+          <nav className="flex h-full items-stretch gap-1 overflow-x-auto overflow-y-hidden text-[13.5px] whitespace-nowrap [scrollbar-width:none] sm:gap-5">
             {NAV.map((n) => (
               <button
                 key={n.route}
                 onClick={() => navigate(n.route)}
-                className={`-mb-px border-b-2 px-1.5 pt-1 font-medium transition-colors sm:px-1 ${route === n.route ? "border-ink text-ink" : "border-transparent text-slate-500 hover:text-ink"}`}
+                className={`-mb-px border-b-2 px-1.5 font-medium transition-colors sm:px-0.5 ${route === n.route ? "border-ink text-ink" : "border-transparent text-slate-500 hover:text-slate-900"}`}
                 aria-current={route === n.route ? "page" : undefined}
               >
                 <span className="sm:hidden">{n.short}</span>
@@ -67,13 +71,16 @@ export default function App() {
               </button>
             ))}
           </nav>
-          <a href={REPO_URL} target="_blank" rel="noreferrer" className="hidden font-mono text-[11px] tracking-[0.1em] text-slate-500 uppercase transition-colors hover:text-ink sm:inline" aria-label="Source on GitHub">
-            Source ↗
+          <a href={REPO_URL} target="_blank" rel="noreferrer" className="btn-ghost hidden text-xs sm:inline-flex" aria-label="Source on GitHub">
+            <svg className="h-4 w-4" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+              <path d="M12 .5a12 12 0 00-3.8 23.4c.6.1.8-.3.8-.6v-2.2c-3.3.7-4-1.4-4-1.4-.6-1.4-1.4-1.8-1.4-1.8-1.1-.7.1-.7.1-.7 1.2.1 1.8 1.2 1.8 1.2 1.1 1.9 2.8 1.3 3.5 1 .1-.8.4-1.3.8-1.6-2.7-.3-5.5-1.3-5.5-5.9 0-1.3.5-2.4 1.2-3.2-.1-.3-.5-1.5.1-3.2 0 0 1-.3 3.3 1.2a11.5 11.5 0 016 0c2.3-1.5 3.3-1.2 3.3-1.2.6 1.7.2 2.9.1 3.2.8.8 1.2 1.9 1.2 3.2 0 4.6-2.8 5.6-5.5 5.9.4.4.8 1.1.8 2.2v3.3c0 .3.2.7.8.6A12 12 0 0012 .5z" />
+            </svg>
+            GitHub
           </a>
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-8 sm:px-6 sm:py-10">
+      <main className={`mx-auto w-full ${width} flex-1 px-4 py-8 sm:px-6 sm:py-10`}>
         {route === "overview" && <Overview />}
         {route === "console" && <Console handoff={handoff} onHandoffUsed={() => setHandoff(null)} />}
         {route === "verify" && <Verify />}
@@ -86,8 +93,8 @@ export default function App() {
           />}
       </main>
 
-      <footer className="border-t-[3px] border-double border-slate-400">
-        <div className="mx-auto flex max-w-6xl flex-col gap-3 px-4 py-7 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6">
+      <footer className="border-t border-slate-200 bg-white">
+        <div className={`mx-auto flex ${width} flex-col gap-3 px-4 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6`}>
           <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
             <span>Tieout is an independent open-source project built on Arc. Not affiliated with Circle.</span>
             <a className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800" href={`${REPO_URL}/blob/main/docs/ARCHITECTURE.md`} target="_blank" rel="noreferrer">Architecture</a>

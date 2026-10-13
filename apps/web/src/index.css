@@ -1,114 +1,20 @@
 @import "tailwindcss";
 
 /*
- * Visual language: a ledger, not a dashboard.
- * Warm paper, iron-gall ink, ledger green for what ties out and red ink for
- * what doesn't. Printed-statement conventions do the decorating: hairline
- * rules, small-caps headings, tabular figures, double rules under totals,
- * tick marks and rubber stamps.
- *
- * The Tailwind palettes the pages already use are remapped here, so every
- * slate/emerald/rose/amber/sky/violet class across the app inherits the
- * ledger palette without touching page code.
+ * Design rules (keep these when adding UI):
+ * - One radius (8px controls, 10px surfaces), one hairline (slate-200), no gradients.
+ * - Depth comes from borders and a 1px shadow, never from glow or blur.
+ * - Emerald is a signal (settled, live), not decoration. Ink carries the brand.
+ * - Numbers and hashes are monospaced and tabular; everything else is Instrument Sans.
+ * - Labels are sentence case. Uppercase is reserved for tiny metadata.
  */
 @theme {
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
-  --font-serif: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
-
-  --color-ink: #1b1712;
-  --color-paper: #f2eee4;
-  --color-white: #fcfaf5;
-
-  /* Warm greys: paper to ink. */
-  --color-slate-50: #f7f4ec;
-  --color-slate-100: #eee9de;
-  --color-slate-200: #e1d9c9;
-  --color-slate-300: #cbc1ad;
-  --color-slate-400: #a59a86;
-  --color-slate-500: #7d735f;
-  --color-slate-600: #5e5546;
-  --color-slate-700: #473f34;
-  --color-slate-800: #302a23;
-  --color-slate-900: #1f1a15;
-  --color-slate-950: #15120e;
-
-  /* Ledger green: settled, ties out. */
-  --color-emerald-50: #edf3ee;
-  --color-emerald-100: #d7e6d9;
-  --color-emerald-200: #b3cfb7;
-  --color-emerald-300: #85b08c;
-  --color-emerald-400: #5a9163;
-  --color-emerald-500: #3b7445;
-  --color-emerald-600: #2b5e36;
-  --color-emerald-700: #234e2d;
-  --color-emerald-800: #1c3f25;
-  --color-emerald-900: #16321d;
-  --color-emerald-950: #0c1d10;
-
-  /* Red ink: exceptions. */
-  --color-rose-50: #faefea;
-  --color-rose-100: #f4dcd2;
-  --color-rose-200: #e9bbac;
-  --color-rose-300: #db917c;
-  --color-rose-400: #cb6a51;
-  --color-rose-500: #b84a31;
-  --color-rose-600: #9e3a24;
-  --color-rose-700: #82301f;
-  --color-rose-800: #69291c;
-  --color-rose-900: #57241a;
-  --color-rose-950: #30100a;
-
-  /* Ochre: variances. */
-  --color-amber-50: #faf4e4;
-  --color-amber-100: #f3e6c2;
-  --color-amber-200: #e8d08f;
-  --color-amber-300: #d9b559;
-  --color-amber-400: #c99a33;
-  --color-amber-500: #ad7e1f;
-  --color-amber-600: #8e6218;
-  --color-amber-700: #704b15;
-  --color-amber-800: #5b3e16;
-  --color-amber-900: #4b3416;
-  --color-amber-950: #2a1b08;
-
-  /* Blue pencil: inferred, informational. */
-  --color-sky-50: #edf1f6;
-  --color-sky-100: #d8e1ec;
-  --color-sky-200: #b5c6db;
-  --color-sky-300: #89a3c4;
-  --color-sky-400: #5e7faa;
-  --color-sky-500: #44638f;
-  --color-sky-600: #354e75;
-  --color-sky-700: #2c3f60;
-  --color-sky-800: #263551;
-  --color-sky-900: #212d44;
-  --color-sky-950: #141b2a;
-
-  /* Plum: held for a person. */
-  --color-violet-50: #f4eef4;
-  --color-violet-100: #e8dbe8;
-  --color-violet-200: #d2b9d2;
-  --color-violet-300: #b691b6;
-  --color-violet-400: #986b98;
-  --color-violet-500: #7d517d;
-  --color-violet-600: #663e66;
-  --color-violet-700: #533353;
-  --color-violet-800: #452b45;
-  --color-violet-900: #3a253a;
-  --color-violet-950: #211321;
-
-  /* Printed matter has corners. */
-  --radius-xs: 2px;
-  --radius-sm: 2px;
-  --radius-md: 3px;
-  --radius-lg: 4px;
-  --radius-xl: 4px;
-  --radius-2xl: 5px;
-  --radius-3xl: 6px;
-
-  --shadow-xs: 0 1px 0 rgba(31, 26, 21, 0.04);
-  --shadow-sm: 0 1px 0 rgba(31, 26, 21, 0.05);
+  --font-sans: "Instrument Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
+  --color-ink: #0b1220;
+  --color-paper: #f7f8fa;
+  --shadow-hair: 0 1px 2px rgba(11, 18, 32, 0.04);
+  --shadow-lift: 0 1px 2px rgba(11, 18, 32, 0.04), 0 12px 32px -16px rgba(11, 18, 32, 0.16);
 }
 
 :root {
@@ -116,7 +22,6 @@
 }
 
 html {
-  background: var(--color-paper);
   text-rendering: optimizeLegibility;
 }
 
@@ -126,102 +31,77 @@ body {
 }
 
 ::selection {
-  background: rgba(59, 116, 69, 0.22);
+  @apply bg-emerald-100;
 }
 
 *:focus-visible {
-  outline: 2px solid var(--color-emerald-600);
+  outline: 2px solid rgba(16, 185, 129, 0.55);
   outline-offset: 2px;
 }
 
 /* ---------- surfaces ---------- */
 
 @utility card {
-  @apply rounded-[4px] border border-slate-300/80 bg-white;
-  box-shadow: 0 1px 0 rgba(31, 26, 21, 0.04);
+  @apply rounded-[10px] border border-slate-200 bg-white;
+  box-shadow: var(--shadow-hair);
 }
 
 @utility card-quiet {
-  @apply rounded-[4px] border border-dashed border-slate-300 bg-transparent;
+  @apply rounded-[10px] border border-dashed border-slate-300 bg-transparent;
 }
 
-/* Ledger paper: faint ruling and a red margin line. */
-@utility ruled {
-  background-color: var(--color-white);
-  background-image:
-    linear-gradient(to right, transparent 0 43px, rgba(184, 74, 49, 0.32) 43px 44px, transparent 44px),
-    repeating-linear-gradient(to bottom, transparent 0 31px, rgba(59, 116, 69, 0.13) 31px 32px);
+@utility hairline {
+  @apply border-t border-slate-200;
 }
 
 /* ---------- controls ---------- */
 
 @utility btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-[3px] border border-ink bg-ink px-4 py-2.5 text-sm font-medium text-white transition-colors hover:border-slate-800 hover:bg-slate-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-ink px-3.5 text-[13.5px] font-medium text-white transition-colors hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-40;
 }
 
 @utility btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-[3px] border border-slate-400 bg-transparent px-4 py-2.5 text-sm font-medium text-slate-900 transition-colors hover:border-ink hover:bg-white active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex h-9 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-3.5 text-[13.5px] font-medium text-slate-800 transition-colors hover:border-slate-300 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40;
 }
 
 @utility btn-ghost {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-[3px] px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-md px-2 py-1 text-[13px] font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40;
 }
 
 @utility input {
-  @apply w-full rounded-[3px] border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-ink;
+  @apply h-9 w-full rounded-lg border border-slate-200 bg-white px-3 text-[13.5px] text-slate-900 outline-none transition-colors placeholder:text-slate-400 hover:border-slate-300 focus:border-slate-400;
+  box-shadow: var(--shadow-hair);
 }
 
 @utility label {
-  @apply mb-1.5 block text-[13px] font-semibold tracking-[0.04em] text-slate-600;
-  font-variant-caps: all-small-caps;
+  @apply mb-1.5 block text-[12.5px] font-medium text-slate-600;
 }
 
 /* ---------- type ---------- */
 
+/* Small metadata above a title. Sentence case, quiet. */
 @utility eyebrow {
-  @apply font-mono text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase;
+  @apply text-[13px] font-medium text-slate-500;
 }
 
 @utility page-title {
-  @apply font-serif text-[36px] leading-[1.02] font-normal tracking-[-0.01em] text-ink sm:text-[46px];
+  @apply text-[26px] leading-tight font-semibold tracking-[-0.025em] text-ink sm:text-[30px];
 }
 
 @utility lead {
-  @apply mt-3 max-w-3xl text-[15px] leading-relaxed text-slate-600;
+  @apply mt-2 max-w-2xl text-[15px] leading-relaxed text-slate-600;
 }
 
-@utility display {
-  @apply font-serif font-normal tracking-[-0.015em] text-ink;
-}
-
-/* Printed tables: small caps over a strong rule. */
 @utility table-head {
-  @apply border-b border-slate-800 bg-transparent text-[13px] font-semibold tracking-[0.05em] text-slate-700;
-  font-variant-caps: all-small-caps;
+  @apply border-b border-slate-200 bg-slate-50/70 text-[12px] font-medium text-slate-500;
 }
 
 @utility nums {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
-/* Accounting convention: totals sit on a double rule. */
-@utility total {
-  border-bottom: 3px double currentColor;
-  padding-bottom: 1px;
-}
-
 @utility chip {
-  @apply inline-flex items-center gap-1.5 rounded-[3px] border border-slate-300 bg-transparent px-2 py-0.5 font-mono text-[11px] text-slate-700;
-}
-
-@utility hairline {
-  @apply border-t border-slate-300/80;
-}
-
-/* Rubber stamp: outlined, letter-spaced capitals. */
-@utility stamp {
-  @apply inline-flex items-center gap-1 rounded-[3px] px-1.5 py-[3px] font-mono text-[10.5px] leading-none font-semibold tracking-[0.1em] whitespace-nowrap uppercase;
-  border: 1.5px solid currentColor;
+  @apply inline-flex items-center gap-1.5 rounded-md border border-slate-200 bg-white px-2 py-0.5 text-[12px] font-medium text-slate-600;
 }
 
 /* ---------- motion ---------- */
@@ -229,7 +109,7 @@ body {
 @keyframes rise {
   from {
     opacity: 0;
-    transform: translateY(6px);
+    transform: translateY(4px);
   }
   to {
     opacity: 1;
@@ -237,31 +117,12 @@ body {
   }
 }
 @utility rise {
-  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: calc(var(--i, 0) * 60ms);
-}
-
-@keyframes stamp-in {
-  0% {
-    opacity: 0;
-    transform: rotate(-8deg) scale(1.6);
-  }
-  60% {
-    opacity: 1;
-    transform: rotate(-8deg) scale(0.96);
-  }
-  100% {
-    opacity: 1;
-    transform: rotate(-8deg) scale(1);
-  }
-}
-@utility stamp-in {
-  animation: stamp-in 0.45s cubic-bezier(0.3, 0.7, 0.3, 1) 0.7s both;
+  animation: rise 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 50ms);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .rise,
-  .stamp-in {
+  .rise {
     animation: none;
   }
 }
@@ -274,7 +135,6 @@ body {
   input[type="file"] {
     display: none !important;
   }
-  html,
   body {
     background: white;
   }
