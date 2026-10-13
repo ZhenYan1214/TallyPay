@@ -1,12 +1,114 @@
 @import "tailwindcss";
 
+/*
+ * Visual language: a ledger, not a dashboard.
+ * Warm paper, iron-gall ink, ledger green for what ties out and red ink for
+ * what doesn't. Printed-statement conventions do the decorating: hairline
+ * rules, small-caps headings, tabular figures, double rules under totals,
+ * tick marks and rubber stamps.
+ *
+ * The Tailwind palettes the pages already use are remapped here, so every
+ * slate/emerald/rose/amber/sky/violet class across the app inherits the
+ * ledger palette without touching page code.
+ */
 @theme {
-  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-mono: "JetBrains Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
-  --color-ink: #0b1220;
-  --color-paper: #f6f7f9;
-  --shadow-card: 0 1px 2px rgba(11, 18, 32, 0.04), 0 10px 30px -18px rgba(11, 18, 32, 0.18);
-  --shadow-pop: 0 1px 2px rgba(11, 18, 32, 0.06), 0 18px 40px -20px rgba(11, 18, 32, 0.28);
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Code", Menlo, monospace;
+  --font-serif: "Instrument Serif", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+
+  --color-ink: #1b1712;
+  --color-paper: #f2eee4;
+  --color-white: #fcfaf5;
+
+  /* Warm greys: paper to ink. */
+  --color-slate-50: #f7f4ec;
+  --color-slate-100: #eee9de;
+  --color-slate-200: #e1d9c9;
+  --color-slate-300: #cbc1ad;
+  --color-slate-400: #a59a86;
+  --color-slate-500: #7d735f;
+  --color-slate-600: #5e5546;
+  --color-slate-700: #473f34;
+  --color-slate-800: #302a23;
+  --color-slate-900: #1f1a15;
+  --color-slate-950: #15120e;
+
+  /* Ledger green: settled, ties out. */
+  --color-emerald-50: #edf3ee;
+  --color-emerald-100: #d7e6d9;
+  --color-emerald-200: #b3cfb7;
+  --color-emerald-300: #85b08c;
+  --color-emerald-400: #5a9163;
+  --color-emerald-500: #3b7445;
+  --color-emerald-600: #2b5e36;
+  --color-emerald-700: #234e2d;
+  --color-emerald-800: #1c3f25;
+  --color-emerald-900: #16321d;
+  --color-emerald-950: #0c1d10;
+
+  /* Red ink: exceptions. */
+  --color-rose-50: #faefea;
+  --color-rose-100: #f4dcd2;
+  --color-rose-200: #e9bbac;
+  --color-rose-300: #db917c;
+  --color-rose-400: #cb6a51;
+  --color-rose-500: #b84a31;
+  --color-rose-600: #9e3a24;
+  --color-rose-700: #82301f;
+  --color-rose-800: #69291c;
+  --color-rose-900: #57241a;
+  --color-rose-950: #30100a;
+
+  /* Ochre: variances. */
+  --color-amber-50: #faf4e4;
+  --color-amber-100: #f3e6c2;
+  --color-amber-200: #e8d08f;
+  --color-amber-300: #d9b559;
+  --color-amber-400: #c99a33;
+  --color-amber-500: #ad7e1f;
+  --color-amber-600: #8e6218;
+  --color-amber-700: #704b15;
+  --color-amber-800: #5b3e16;
+  --color-amber-900: #4b3416;
+  --color-amber-950: #2a1b08;
+
+  /* Blue pencil: inferred, informational. */
+  --color-sky-50: #edf1f6;
+  --color-sky-100: #d8e1ec;
+  --color-sky-200: #b5c6db;
+  --color-sky-300: #89a3c4;
+  --color-sky-400: #5e7faa;
+  --color-sky-500: #44638f;
+  --color-sky-600: #354e75;
+  --color-sky-700: #2c3f60;
+  --color-sky-800: #263551;
+  --color-sky-900: #212d44;
+  --color-sky-950: #141b2a;
+
+  /* Plum: held for a person. */
+  --color-violet-50: #f4eef4;
+  --color-violet-100: #e8dbe8;
+  --color-violet-200: #d2b9d2;
+  --color-violet-300: #b691b6;
+  --color-violet-400: #986b98;
+  --color-violet-500: #7d517d;
+  --color-violet-600: #663e66;
+  --color-violet-700: #533353;
+  --color-violet-800: #452b45;
+  --color-violet-900: #3a253a;
+  --color-violet-950: #211321;
+
+  /* Printed matter has corners. */
+  --radius-xs: 2px;
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 4px;
+  --radius-2xl: 5px;
+  --radius-3xl: 6px;
+
+  --shadow-xs: 0 1px 0 rgba(31, 26, 21, 0.04);
+  --shadow-sm: 0 1px 0 rgba(31, 26, 21, 0.05);
 }
 
 :root {
@@ -14,82 +116,154 @@
 }
 
 html {
-  font-feature-settings: "cv11", "ss01", "ss03";
+  background: var(--color-paper);
   text-rendering: optimizeLegibility;
 }
 
 body {
   @apply bg-paper text-slate-900 antialiased;
+  font-feature-settings: "kern", "liga";
 }
 
 ::selection {
-  @apply bg-emerald-200/70;
+  background: rgba(59, 116, 69, 0.22);
 }
 
 *:focus-visible {
-  @apply outline-none ring-4 ring-emerald-500/25 ring-offset-0;
+  outline: 2px solid var(--color-emerald-600);
+  outline-offset: 2px;
 }
 
+/* ---------- surfaces ---------- */
+
 @utility card {
-  @apply rounded-2xl border border-slate-200/80 bg-white;
-  box-shadow: var(--shadow-card);
+  @apply rounded-[4px] border border-slate-300/80 bg-white;
+  box-shadow: 0 1px 0 rgba(31, 26, 21, 0.04);
 }
 
 @utility card-quiet {
-  @apply rounded-2xl border border-slate-200/70 bg-white/70;
+  @apply rounded-[4px] border border-dashed border-slate-300 bg-transparent;
 }
 
+/* Ledger paper: faint ruling and a red margin line. */
+@utility ruled {
+  background-color: var(--color-white);
+  background-image:
+    linear-gradient(to right, transparent 0 43px, rgba(184, 74, 49, 0.32) 43px 44px, transparent 44px),
+    repeating-linear-gradient(to bottom, transparent 0 31px, rgba(59, 116, 69, 0.13) 31px 32px);
+}
+
+/* ---------- controls ---------- */
+
 @utility btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
-  background: linear-gradient(180deg, #1d2a44 0%, #0b1220 100%);
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 1px 2px rgba(11, 18, 32, 0.2), 0 10px 24px -14px rgba(11, 18, 32, 0.6);
-  &:hover {
-    background: linear-gradient(180deg, #26355a 0%, #111b31 100%);
-  }
+  @apply inline-flex items-center justify-center gap-2 rounded-[3px] border border-ink bg-ink px-4 py-2.5 text-sm font-medium text-white transition-colors hover:border-slate-800 hover:bg-slate-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
 }
 
 @utility btn-secondary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-800 shadow-xs transition hover:border-slate-300 hover:bg-slate-50 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex items-center justify-center gap-2 rounded-[3px] border border-slate-400 bg-transparent px-4 py-2.5 text-sm font-medium text-slate-900 transition-colors hover:border-ink hover:bg-white active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
 }
 
 @utility btn-ghost {
-  @apply inline-flex items-center justify-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-slate-600 transition hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40;
+  @apply inline-flex items-center justify-center gap-1.5 rounded-[3px] px-2.5 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40;
 }
 
 @utility input {
-  @apply w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 shadow-xs outline-none transition placeholder:text-slate-400 focus:border-slate-400 focus:ring-4 focus:ring-slate-900/5;
+  @apply w-full rounded-[3px] border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-ink;
 }
 
 @utility label {
-  @apply mb-1.5 block text-[11px] font-semibold tracking-[0.12em] text-slate-500 uppercase;
+  @apply mb-1.5 block text-[13px] font-semibold tracking-[0.04em] text-slate-600;
+  font-variant-caps: all-small-caps;
 }
 
+/* ---------- type ---------- */
+
 @utility eyebrow {
-  @apply text-[11px] font-semibold tracking-[0.14em] text-emerald-700 uppercase;
+  @apply font-mono text-[11px] font-medium tracking-[0.16em] text-slate-500 uppercase;
 }
 
 @utility page-title {
-  @apply text-2xl font-semibold tracking-tight text-slate-900 sm:text-3xl;
+  @apply font-serif text-[36px] leading-[1.02] font-normal tracking-[-0.01em] text-ink sm:text-[46px];
 }
 
 @utility lead {
-  @apply mt-2 max-w-3xl text-[15px] leading-relaxed text-slate-600;
+  @apply mt-3 max-w-3xl text-[15px] leading-relaxed text-slate-600;
 }
 
+@utility display {
+  @apply font-serif font-normal tracking-[-0.015em] text-ink;
+}
+
+/* Printed tables: small caps over a strong rule. */
 @utility table-head {
-  @apply bg-slate-50/80 text-[11px] font-semibold tracking-[0.1em] text-slate-500 uppercase;
+  @apply border-b border-slate-800 bg-transparent text-[13px] font-semibold tracking-[0.05em] text-slate-700;
+  font-variant-caps: all-small-caps;
 }
 
 @utility nums {
   font-variant-numeric: tabular-nums lining-nums;
 }
 
+/* Accounting convention: totals sit on a double rule. */
+@utility total {
+  border-bottom: 3px double currentColor;
+  padding-bottom: 1px;
+}
+
 @utility chip {
-  @apply inline-flex items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2.5 py-1 text-xs font-medium text-slate-700;
+  @apply inline-flex items-center gap-1.5 rounded-[3px] border border-slate-300 bg-transparent px-2 py-0.5 font-mono text-[11px] text-slate-700;
 }
 
 @utility hairline {
-  @apply border-t border-slate-200/80;
+  @apply border-t border-slate-300/80;
+}
+
+/* Rubber stamp: outlined, letter-spaced capitals. */
+@utility stamp {
+  @apply inline-flex items-center gap-1 rounded-[3px] px-1.5 py-[3px] font-mono text-[10.5px] leading-none font-semibold tracking-[0.1em] whitespace-nowrap uppercase;
+  border: 1.5px solid currentColor;
+}
+
+/* ---------- motion ---------- */
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@utility rise {
+  animation: rise 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 60ms);
+}
+
+@keyframes stamp-in {
+  0% {
+    opacity: 0;
+    transform: rotate(-8deg) scale(1.6);
+  }
+  60% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(0.96);
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(-8deg) scale(1);
+  }
+}
+@utility stamp-in {
+  animation: stamp-in 0.45s cubic-bezier(0.3, 0.7, 0.3, 1) 0.7s both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rise,
+  .stamp-in {
+    animation: none;
+  }
 }
 
 @media print {
@@ -100,6 +274,7 @@ body {
   input[type="file"] {
     display: none !important;
   }
+  html,
   body {
     background: white;
   }
@@ -110,76 +285,5 @@ body {
   main {
     padding: 0;
     max-width: none;
-  }
-}
-
-/* ---------- character ---------- */
-
-/* Soft two-tone glow behind the hero. */
-@utility hero-glow {
-  background:
-    radial-gradient(42rem 22rem at 18% 0%, rgba(16, 185, 129, 0.16), transparent 65%),
-    radial-gradient(36rem 20rem at 85% 10%, rgba(99, 102, 241, 0.12), transparent 65%);
-}
-
-/* Fine dot grid, faded at the edges. */
-@utility dot-grid {
-  background-image: radial-gradient(rgba(11, 18, 32, 0.12) 1px, transparent 1px);
-  background-size: 22px 22px;
-  mask-image: radial-gradient(50rem 24rem at 50% 20%, #000 20%, transparent 70%);
-}
-
-/* Gradient-inked key phrase. */
-@utility text-ink-gradient {
-  background: linear-gradient(92deg, #059669 0%, #0b1220 55%, #4f46e5 120%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Cards that lift on hover. */
-@utility card-lift {
-  @apply transition duration-300;
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-pop);
-  }
-}
-
-/* Browser-window frame for product previews. */
-@utility window {
-  @apply overflow-hidden rounded-2xl border border-slate-200/80 bg-white;
-  box-shadow: 0 1px 2px rgba(11, 18, 32, 0.05), 0 30px 60px -30px rgba(11, 18, 32, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
-}
-
-/* Icon tiles for steps and features. */
-@utility tile {
-  @apply flex h-10 w-10 items-center justify-center rounded-xl;
-  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
-  color: #047857;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 1px 2px rgba(5, 150, 105, 0.12);
-}
-
-/* Entrance: fade and rise, staggered through --i. */
-@keyframes rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-@utility rise {
-  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
-  animation-delay: calc(var(--i, 0) * 70ms);
-}
-@media (prefers-reduced-motion: reduce) {
-  .rise {
-    animation: none;
-  }
-  .card-lift:hover {
-    transform: none;
   }
 }

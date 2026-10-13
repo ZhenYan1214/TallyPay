@@ -673,7 +673,7 @@ function Results({
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`nums rounded-full px-3 py-1 text-sm ring-1 transition ${filter === f ? "bg-ink text-white ring-ink" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
+                  className={`nums rounded-[3px] px-2.5 py-1 font-mono text-[12px] ring-1 transition ${filter === f ? "bg-ink text-white ring-ink" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
                 >
                   {f === "all" ? "All" : f === "exceptions" ? "Exceptions" : <StatusLabel status={f} />} · {count}
                 </button>
