@@ -85,7 +85,7 @@ body {
 }
 
 @utility page-title {
-  @apply text-[26px] leading-tight font-semibold tracking-[-0.025em] text-ink sm:text-[30px];
+  @apply text-[28px] leading-[1.15] font-semibold tracking-[-0.035em] text-ink sm:text-[34px];
 }
 
 @utility lead {

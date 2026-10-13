@@ -559,7 +559,7 @@ function Results({
         </Notice>
       )}
 
-      <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
+      <section className="grid gap-px overflow-hidden rounded-[10px] border border-slate-200 bg-slate-200 shadow-[var(--shadow-hair)] sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Expected" value={fmt(fromUnits(s.expectedUnits))} hint={`${report.items.filter((i) => i.instruction).length} ledger entries · USDC`} />
         <Stat
           label="Settled"
@@ -569,7 +569,7 @@ function Results({
         />
         <Stat label="Exceptions" tone={exceptions ? "bad" : "good"} value={exceptions} hint={`${fmt(fromUnits(s.exceptionUnits))} USDC needs review`} />
         <Stat label="Network fees" value={fmt(formatUnits(report.feesWei, 18), 6)} hint={`USDC across ${activity.fees.length} transaction${activity.fees.length === 1 ? "" : "s"}`} />
-        <div className="card p-4">
+        <div className="bg-white p-4 sm:col-span-2 sm:p-5 lg:col-span-1">
           <div className="text-[12.5px] font-medium text-slate-500">Run anchor{report.anchors.length === 1 ? "" : "s"}</div>
           <div className="mt-2 space-y-1.5">
             {report.anchors.length === 0 && <span className="text-xs text-slate-500">No ledger runs</span>}

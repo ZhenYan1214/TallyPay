@@ -64,8 +64,14 @@ export function PageHeader({ eyebrow, title, lead, aside }: { eyebrow?: string; 
   return (
     <div className="flex flex-wrap items-end justify-between gap-4">
       <div>
-        {eyebrow && <p className="eyebrow">{eyebrow}</p>}
-        <h1 className="page-title mt-1">{title}</h1>
+        {eyebrow && (
+          <p className="eyebrow">
+            <span className="text-slate-400">Tieout</span>
+            <span className="mx-1.5 text-slate-300">/</span>
+            {eyebrow}
+          </p>
+        )}
+        <h1 className="page-title mt-2">{title}</h1>
         {lead && <p className="lead">{lead}</p>}
       </div>
       {aside}
@@ -104,7 +110,7 @@ export function Collapsible({ title, summary, defaultOpen = false, children }: {
 export function Stat({ label, value, hint, tone = "default" }: { label: string; value: ReactNode; hint?: ReactNode; tone?: "default" | "good" | "warn" | "bad" }) {
   const toneClass = { default: "text-slate-900", good: "text-emerald-700", warn: "text-amber-700", bad: "text-rose-700" }[tone];
   return (
-    <div className="card p-4">
+    <div className="bg-white p-4 sm:p-5">
       <div className="text-[12.5px] font-medium text-slate-500">{label}</div>
       <div className={`nums mt-2 text-[24px] leading-none font-semibold tracking-[-0.02em] ${toneClass}`}>{value}</div>
       {hint && <div className="mt-2 text-xs leading-relaxed text-slate-500">{hint}</div>}

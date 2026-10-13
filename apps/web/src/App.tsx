@@ -93,15 +93,48 @@ export default function App() {
           />}
       </main>
 
-      <footer className="border-t border-slate-200 bg-white">
-        <div className={`mx-auto flex ${width} flex-col gap-3 px-4 py-6 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between sm:px-6`}>
-          <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
-            <span>Tieout is an independent open-source project built on Arc. Not affiliated with Circle.</span>
-            <a className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800" href={`${REPO_URL}/blob/main/docs/ARCHITECTURE.md`} target="_blank" rel="noreferrer">Architecture</a>
-            <a className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800" href={`${REPO_URL}/blob/main/docs/MEMO_SPEC.md`} target="_blank" rel="noreferrer">Memo spec</a>
-            <a className="underline decoration-slate-300 underline-offset-2 hover:text-slate-800" href={`${REPO_URL}/blob/main/SECURITY.md`} target="_blank" rel="noreferrer">Security</a>
+      <footer className="mt-16 border-t border-slate-200 bg-white">
+        <div className={`mx-auto ${width} px-4 py-10 sm:px-6`}>
+          <div className="grid gap-10 sm:grid-cols-[1.4fr_1fr_1fr]">
+            <div>
+              <div className="flex items-center gap-2">
+                <img src="./favicon.svg" alt="" className="h-5 w-5 rounded-[5px]" />
+                <span className="text-[15px] font-semibold tracking-[-0.02em]">Tieout</span>
+              </div>
+              <p className="mt-3 max-w-xs text-[13px] leading-relaxed text-slate-500">
+                Reconciliation for USDC on Arc. An independent open-source project, not affiliated with Circle.
+              </p>
+            </div>
+            <div>
+              <div className="text-[12.5px] font-medium text-slate-900">Product</div>
+              <ul className="mt-3 space-y-2 text-[13px] text-slate-500">
+                {NAV.filter((n) => n.route !== "overview").map((n) => (
+                  <li key={n.route}>
+                    <button className="transition-colors hover:text-slate-900" onClick={() => navigate(n.route)}>{n.label}</button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <div>
+              <div className="text-[12.5px] font-medium text-slate-900">Docs</div>
+              <ul className="mt-3 space-y-2 text-[13px] text-slate-500">
+                {[
+                  ["Source on GitHub", REPO_URL],
+                  ["Architecture", `${REPO_URL}/blob/main/docs/ARCHITECTURE.md`],
+                  ["Memo spec", `${REPO_URL}/blob/main/docs/MEMO_SPEC.md`],
+                  ["Security", `${REPO_URL}/blob/main/SECURITY.md`],
+                ].map(([label, href]) => (
+                  <li key={label}>
+                    <a className="transition-colors hover:text-slate-900" href={href} target="_blank" rel="noreferrer">{label}</a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-          <span>Journal entries are templates for review by an accountant, not accounting or tax advice.</span>
+          <div className="mt-10 flex flex-col gap-2 border-t border-slate-100 pt-6 text-[12px] text-slate-400 sm:flex-row sm:justify-between">
+            <span>Apache-2.0</span>
+            <span>Journal entries are templates for review by an accountant, not accounting or tax advice.</span>
+          </div>
         </div>
       </footer>
     </div>
