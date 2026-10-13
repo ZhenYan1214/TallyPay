@@ -234,6 +234,20 @@
 | 業者怎麼接 | `docs/INTEGRATION.md` |
 | 一句話差異化 | 「別人證明錢付出去了，Tieout 證明帳記對了」 |
 
+### 3.10 第六輪：換不同審查員身份再看一次（2026-10-13）
+
+| 身份 | 質疑 | 處理 |
+|---|---|---|
+| 稽核 | 「任何人可重跑稽核包」有工具嗎？ | `npm run verify-bundle -- <bundle.json> [--rescan]`：從稽核包重算並逐筆比對，`--rescan` 再讀一次鏈比對每筆轉帳與餘額。用測試網真實資料驗證通過 |
+| 會計師 | camt.054 把 USDC 第六位小數直接截掉 | 改為四捨五入到 ISO 的五位，CSV 與分錄保留六位；文件說明 |
+| 會計師 | memo 的批次號跟帳本檔不同就判 mismatch 太嚴 | 改為註記不改狀態：EndToEndId 是鍵，批次號是脈絡 |
+| 工程 | 受信任的參考指到掃描範圍外或不存在的 id 會被默默忽略 | 報告新增 danglingReferences，畫面提示 |
+| 資安 | 沒有回報管道 | `SECURITY.md`：範圍、流程、設計重點 |
+| 工程 | CI 只在 main 推送時跑 | PR 也跑建置與測試，只有 main 部署 |
+| 手機使用者 | 375px 導覽列折行、品牌字被擋 | 短標籤、不換行、可橫向捲動；首頁與 Reconcile 實測無橫向溢出 |
+| 分享連結的人 | 沒有 Open Graph 預覽 | 加 og:title / description / image 與 theme-color |
+| 十分鐘的審查員 | README 太長 | 頂端加「If you have ten minutes」五步地圖 |
+
 ---
 
 ## 4. 最終定位
@@ -374,7 +388,7 @@ ReconReport { items, anchors, summary }
 | 語言 | TypeScript | 前後端共用 SDK |
 | 鏈互動 | viem | 型別安全、輕量 |
 | 前端 | Vite + React + Tailwind v4 | 靜態網站，可部署在任何地方 |
-| 測試 | Vitest 5 | 47 個單元測試；`npm audit` 0 個漏洞 |
+| 測試 | Vitest 5 | 50 個單元測試；`npm audit` 0 個漏洞 |
 | 命令列 | tsx | 直接執行 TypeScript |
 | 部署 | GitHub Pages + Actions | 只需要 GitHub 帳號 |
 | 授權 | Apache-2.0 | — |
@@ -464,7 +478,8 @@ ReconReport { items, anchors, summary }
 | Reconcile：首頁一鍵自動執行 demo、情境導覽面板、RPC 失敗時改用快照 | ✅ |
 | Verify：憑 `EndToEndId` 查鏈上 memo，`callDataHash` 連結到轉帳 | ✅（測試網實測） |
 | 命令列：技術驗證、示範情境、對帳、gas 報告、快照、資金回收、測試錢包 | ✅ |
-| 單元測試 47 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + 套件建置 + 網站建置 | ✅ 全部通過 |
+| 單元測試 50 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + 套件建置 + 網站建置（PR 也跑） | ✅ 全部通過 |
+| 稽核包重跑工具、SECURITY.md、OG 預覽、手機版面 | ✅ |
 | 人工決定、對帳單模式、自訂 RPC、批次傳輸、可發佈套件 | ✅ |
 | README（英文 + 中文簡介）、Memo 規格書、投稿稿、研究筆記、Apache-2.0 授權 | ✅ |
 | GitHub Pages 自動部署流程 | ✅（尚未推送） |

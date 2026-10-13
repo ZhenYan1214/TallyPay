@@ -14,6 +14,8 @@ Everything needed for the Arc Microgrants form, ready to paste once the mainnet 
 - [ ] Pay page: "Request a payment" produces a link; opening it prefills the Send tab
 - [ ] Reconcile page: the demo's intent-matched payment shows the "Attach references on-chain" card; the seller-11 case shows evidence "reference"
 - [ ] Reconcile page: clear the ledger, paste any mainnet wallet, "Statement for this wallet" works
+- [ ] Export → Audit bundle, then `npm run verify-bundle -- <file> --rescan` prints "Bundle verified" and "Chain matches"
+- [ ] Open the live URL on a phone: no horizontal scroll, nav fits
 - [ ] Pay page shows Arc Mainnet by default
 - [ ] GitHub profile is public with a name, avatar and at least this pinned repo
 - [ ] Demo funds swept back: `npm run sweep -- --network=arc-mainnet` (optional, after the review period)

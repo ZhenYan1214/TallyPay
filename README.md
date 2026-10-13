@@ -15,6 +15,14 @@
 >
 > Other Arc tools prove the money moved. Tieout proves the books are right.
 
+## If you have ten minutes
+
+1. The live demo, below, is the fastest way to see what it does.
+2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the design: evidence grades, trust boundaries, what is left out and why.
+3. [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md) is the proposal for an Arc-wide payment memo convention.
+4. [docs/RESEARCH.md](docs/RESEARCH.md) is why this is needed, with sources (Chinese).
+5. `npm test` runs 50 tests in about a second; `npm run verify-bundle -- <audit.json>` re-runs any report somebody hands you.
+
 ## Try it in 60 seconds
 
 1. Open the live app and click **Run the PromptBazaar demo**. It scans Arc mainnet from your browser and reconciles a real payout run and two invoices: 9 payouts matched, 1 matched without a memo, 1 edited after payment, 1 never paid, 1 unexplained outflow, 1 invoice paid with a memo, 1 invoice still open, 1 unexplained receipt. Every row links to the explorer. The balance roll-forward at the top reads "fully explained".
@@ -47,7 +55,7 @@ Arc is unusually well suited to fix this: memos live in the same transaction as 
 | **Reconcile** | Reads the wallet's activity from any public Arc RPC, in both directions, including native USDC sends that only appear in Arc's EIP-7708 system log. Matches with three grades of evidence: the memo in the transaction, a reference published afterwards, or counterparty + token + amount when the pairing is unique. Ambiguous pairings are held for a person, never guessed. Several ledgers (a month of payout runs plus the invoices) reconcile in one pass; the range can be given as dates. |
 | **Attest** | For payments a Safe, custodian or plain wallet send made without a memo, any trusted EOA can publish an on-chain reference afterwards. It names the transaction and the EndToEndId and shares the payment's memoId, so from then on the payment is findable by id and reconciles as first-class evidence. |
 | **Verify** | Finds any payment from its `EndToEndId` alone via the indexed `memoId` topic, and proves the memo belongs to that exact transfer through `callDataHash`. |
-| **Book** | Matched payouts and receipts become balanced journal entries; exceptions go to suspense; the wallet balance is rolled forward against the chain. Exports: audit bundle (ledgers + chain scan + every decision, re-runnable by anyone), review CSV, generic journal CSV, Xero manual-journal import, QuickBooks Online journal import, ISO 20022 camt.054 XML. |
+| **Book** | Matched payouts and receipts become balanced journal entries; exceptions go to suspense; the wallet balance is rolled forward against the chain. Exports: audit bundle (ledgers + chain scan + every decision; `npm run verify-bundle` recomputes it and, with `--rescan`, checks the chain still agrees), review CSV, generic journal CSV, Xero manual-journal import, QuickBooks Online journal import, ISO 20022 camt.054 XML. |
 
 Every ledger entry and every transfer ends up in exactly one bucket:
 
@@ -207,7 +215,7 @@ docs/                             memo spec, architecture, integration guide, su
 
 - **No backend and no keys on a server.** The web app reads Arc directly from the browser. Payouts are signed by the user's own wallet (EIP-1193).
 - **No custom contracts.** Payments go through Arc's predeployed `Memo` (`0x5294…e505`) and `Multicall3From` (`0x522f…47D0`).
-- 47 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all four evidence grades, ambiguity and its manual resolution, statement mode, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
+- 50 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all four evidence grades, ambiguity and its manual resolution, statement mode, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
 
 ## Run it
 
@@ -270,7 +278,8 @@ Journal entries are **templates for review by an accountant, not accounting or t
 - Account codes and names are configurable (`ChartOfAccounts`).
 - The Xero export follows the "Import manual journals" layout (`*Narration, *Date, Description, *AccountCode, *TaxRate, *Amount, TrackingName1, TrackingOption1`; positive amounts are debits, negative are credits), includes USDC lines only, and rounds each line's magnitude half-up to cents so debits and credits stay equal. Xero does not accept bank accounts or system accounts (AP/AR) in manual journals: set the USDC wallet up as a **Current Asset**, *Payouts payable* as a **Current Liability** and *Receivables (USDC invoices)* as a **Current Asset**, then map their codes.
 - The QuickBooks Online export follows the "Import journal entries" layout (`*JournalNo, *JournalDate, *AccountName, Debits, Credits, Description, Name, Currency`): account **names**, US dates, the transaction hash in the description because QBO has no hash field.
-- The camt.054 export is a draft notification: USDC is reported as `USD` and EURC as `EUR`, with the token and network in the proprietary bank transaction code. Validate it against your TMS before relying on it.
+- The camt.054 export is a draft notification: USDC is reported as `USD` and EURC as `EUR`, with the token and network in the proprietary bank transaction code. ISO amounts carry five decimals, so the sixth USDC decimal is rounded half-up there (the CSV and journal keep all six). Validate it against your TMS before relying on it.
+- A memo whose run id differs from the ledger file's run id is noted, not failed: the EndToEndId is the key, the batch label is context.
 
 ## Limitations
 
@@ -289,6 +298,10 @@ Journal entries are **templates for review by an accountant, not accounting or t
 - EURC and local stablecoins with FX rates recorded at settlement
 - View-key audits once Arc's opt-in privacy ships: an auditor could verify a run without the ledger becoming public
 - Propose `tp1` (or its successor) to the Arc team as a shared memo convention
+
+## Security
+
+No keys, no server, no custom contracts; every transaction is simulated before the wallet signs. Report anything that could move the wrong amount or misstate the chain through the repository's security advisories; see [SECURITY.md](SECURITY.md).
 
 ## License
 
