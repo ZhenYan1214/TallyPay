@@ -140,3 +140,27 @@ describe("human decisions and statement mode", () => {
     expect(buildJournal(r, [])).toHaveLength(3);
   });
 });
+
+
+describe("soft notes and dangling references", () => {
+  const ledger: PayoutInstruction[] = [{ EndToEndId: "R-1", recipient: addr(1), amount: "10.00", token: "USDC" }];
+
+  it("notes a different run id on the memo without failing the match", () => {
+    const t = transfer(ME, addr(1), "10.00", { memo: "R-1" }); // memo says run "R"
+    const r = reconcile([{ PmtInfId: "OTHER-RUN", instructions: ledger }], activity([t]));
+    expect(r.items[0]).toMatchObject({ status: "matched", evidence: "memo" });
+    expect(r.items[0]!.notes[0]).toContain("Memo names run R");
+  });
+
+  it("reports trusted references that point outside the scan or at unknown ids", () => {
+    const r = reconcile([{ PmtInfId: "R", instructions: ledger }], activity([transfer(ME, addr(1), "10.00", { txn: 2 })], [
+      reference(OPS, "R-1", tx(77)), // transaction not in the scan
+      reference(OPS, "NOPE", tx(2), 51), // id not in the ledger
+    ]));
+    expect(r.danglingReferences).toEqual([
+      expect.objectContaining({ EndToEndId: "NOPE", reason: "unknown_id" }),
+      expect.objectContaining({ EndToEndId: "R-1", reason: "tx_not_in_scan" }),
+    ]);
+    expect(r.items[0]).toMatchObject({ status: "matched_by_intent" });
+  });
+});

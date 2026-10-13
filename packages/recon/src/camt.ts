@@ -1,4 +1,3 @@
-import { fromUnits } from "@tieout/sdk";
 import type { ReconReport } from "./reconcile.js";
 
 /**
@@ -42,12 +41,16 @@ function date(ts: number): string {
   return new Date(ts * 1000).toISOString().slice(0, 10);
 }
 
-/** Decimal with at most 5 fraction digits, as ISO 20022 ActiveCurrencyAndAmount allows. */
+/**
+ * Decimal with at most 5 fraction digits, as ISO 20022 ActiveCurrencyAndAmount
+ * allows. USDC has 6, so the last digit is rounded half-up, never dropped;
+ * the exact 6-decimal figure is still in the reconciliation CSV and journal.
+ */
 function amt(units: bigint): string {
-  const s = fromUnits(units);
-  const [whole, frac = ""] = s.split(".");
-  const f = frac.slice(0, 5).replace(/0+$/, "");
-  return f ? `${whole}.${f}` : whole!;
+  const rounded = (units + 5n) / 10n; // 5-decimal units
+  const whole = rounded / 100_000n;
+  const f = (rounded % 100_000n).toString().padStart(5, "0").replace(/0+$/, "");
+  return f ? `${whole}.${f}` : whole.toString();
 }
 
 export function camt054Xml(report: ReconReport, options: CamtOptions = {}): string {

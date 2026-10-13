@@ -147,3 +147,14 @@ describe("exports", () => {
     expect(lines.some((l) => l.startsWith("INV-1,10/09/2025,USDC wallet (Arc),25.00,,"))).toBe(true);
   });
 });
+
+
+describe("camt amounts", () => {
+  it("rounds the sixth USDC decimal half-up into ISO's five", () => {
+    const report = reconcile([], activity([transfer(addr(3), ME, "0.123456", { txn: 9 }), transfer(ME, addr(4), "2.000005", { txn: 10 })]), { incoming: "reconcile" });
+    const xml = camt054Xml(report, { msgId: "M" });
+    expect(xml).toContain('<Amt Ccy="USD">0.12346</Amt>');
+    expect(xml).toContain('<Amt Ccy="USD">2.00001</Amt>');
+    expect(xml).toContain("<TtlCdtNtries><NbOfNtries>1</NbOfNtries><Sum>0.12346</Sum></TtlCdtNtries>");
+  });
+});

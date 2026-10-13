@@ -109,6 +109,8 @@ export interface ReconReport {
   rollForward?: BalanceRollForward[];
   /** Incoming transfers left out because the ledger has no receivables. */
   ignoredIncoming: { count: number; units: bigint };
+  /** Trusted references that name a transaction outside the scanned range, or an EndToEndId not in the ledger. */
+  danglingReferences: Array<{ EndToEndId: string; TxHash: Hex; sender: Address; reason: "tx_not_in_scan" | "unknown_id" }>;
   summary: Record<ReconStatus, number> & {
     expectedUnits: bigint;
     settledUnits: bigint;
@@ -207,7 +209,7 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
   const directionOf = (t: TransferObservation): Direction => (same(t.from, account) ? "out" : "in");
 
   /** Field-by-field comparison once a transfer has been tied to an entry by memo or reference. */
-  function compare(entry: Entry, transfer: TransferObservation, memoRun: string | undefined): string[] {
+  function compare(entry: Entry, transfer: TransferObservation): string[] {
     const direction = directionOf(transfer);
     const notes: string[] = [];
     if (entry.direction !== direction) {
@@ -220,8 +222,12 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     const variance = varianceNote(transfer, toUnits(entry.amount));
     if (variance) notes.push(variance);
     if (transfer.token !== entry.token) notes.push(`Token ${transfer.token} differs from ledger ${entry.token}`);
-    if (memoRun && memoRun !== entry.PmtInfId) notes.push(`Memo run ${memoRun} differs from ledger run ${entry.PmtInfId}`);
     return notes;
+  }
+
+  /** Differences that are worth saying but do not change what was paid: the batch label on the memo vs the ledger file. */
+  function softNotes(entry: Entry, memoRun: string | undefined): string[] {
+    return memoRun && memoRun !== entry.PmtInfId ? [`Memo names run ${memoRun}; this ledger file is ${entry.PmtInfId}`] : [];
   }
 
   function settle(entry: Entry, transfer: TransferObservation, evidence: Evidence, memoRun: string | undefined, reference?: ReferenceObservation) {
@@ -232,8 +238,9 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
       return;
     }
     settled.add(entry.EndToEndId);
-    const notes = compare(entry, transfer, memoRun);
+    const notes = compare(entry, transfer);
     const status: ReconStatus = notes.length ? "mismatch" : "matched";
+    notes.push(...softNotes(entry, memoRun));
     if (reference) notes.push(`Reference published after the fact by ${reference.sender} in ${reference.txHash}`);
     items.push({
       status,
@@ -266,12 +273,20 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     refsByTx.set(r.reference.TxHash.toLowerCase(), list);
   }
   const usedRefs = new Set<ReferenceObservation>();
+  const txsInScope = new Set(inScope.map((t) => t.txHash.toLowerCase()));
+  const danglingReferences: ReconReport["danglingReferences"] = [];
+  for (const list of refsByTx.values()) {
+    for (const r of list) {
+      if (!byId.has(r.reference.EndToEndId)) danglingReferences.push({ EndToEndId: r.reference.EndToEndId, TxHash: r.reference.TxHash, sender: r.sender, reason: "unknown_id" });
+      else if (!txsInScope.has(r.reference.TxHash.toLowerCase())) danglingReferences.push({ EndToEndId: r.reference.EndToEndId, TxHash: r.reference.TxHash, sender: r.sender, reason: "tx_not_in_scan" });
+    }
+  }
   for (const transfer of inScope) {
     if (claimed.has(transfer) || transfer.memo?.decoded.kind === "payment") continue;
     const refs = (refsByTx.get(transfer.txHash.toLowerCase()) ?? []).filter((r) => !usedRefs.has(r) && byId.has(r.reference.EndToEndId));
     if (refs.length === 0) continue;
     // Several references can name one transaction (a Safe batch). Pick the one whose entry fits this transfer.
-    const fitting = refs.filter((r) => compare(byId.get(r.reference.EndToEndId)!, transfer, undefined).length === 0);
+    const fitting = refs.filter((r) => compare(byId.get(r.reference.EndToEndId)!, transfer).length === 0);
     const chosen = fitting[0] ?? (refs.length === 1 ? refs[0] : undefined);
     if (!chosen) continue;
     usedRefs.add(chosen);
@@ -423,6 +438,7 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     feesWei,
     rollForward,
     ignoredIncoming,
+    danglingReferences: danglingReferences.sort((a, b) => a.EndToEndId.localeCompare(b.EndToEndId)),
     summary,
   };
 }
