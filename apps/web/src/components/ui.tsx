@@ -12,11 +12,11 @@ const STATUS_STYLE: Record<ReconStatus, { label: string; className: string }> = 
 
 export const STATUS_HELP: Record<ReconStatus, string> = {
   matched: "Memo, recipient, amount and token agree with the ledger.",
-  matched_by_intent: "No memo (e.g. sent from a Safe or MPC wallet), but recipient, token and amount match a ledger entry.",
+  matched_by_intent: "No memo (e.g. sent from a Safe or MPC wallet, or a plain wallet send), but counterparty, token and amount match a ledger entry.",
   mismatch: "The memo points to a ledger entry, but the amount, recipient or token differ.",
   missing: "The ledger expects this payment, but no transfer was found.",
   duplicate: "This ledger entry was paid more than once.",
-  unexpected: "Money left the wallet and the ledger has no entry for it.",
+  unexpected: "Money moved and the ledger has no entry for it.",
 };
 
 export function StatusBadge({ status }: { status: ReconStatus }) {

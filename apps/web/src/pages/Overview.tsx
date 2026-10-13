@@ -11,7 +11,7 @@ const STEPS = [
   },
   {
     title: "Reconcile",
-    body: "Tallypay reads the wallet's activity and matches it to your ledger: by memo when present, by recipient and amount when the payer used a Safe or MPC wallet that can't attach memos.",
+    body: "Tallypay reads the wallet's activity in both directions and matches it to your ledger: by memo when present, by counterparty and amount when the payer used a Safe, an MPC wallet or a plain wallet send that can't attach memos.",
   },
   {
     title: "Verify",
@@ -19,7 +19,7 @@ const STEPS = [
   },
   {
     title: "Book",
-    body: "Matched payouts become balanced journal entries; exceptions land in suspense for review. Export a CSV or a Xero manual journal.",
+    body: "Matched payouts and receipts become balanced journal entries; exceptions land in suspense; the balance is rolled forward against the chain. Export for Xero, QuickBooks, or as an ISO 20022 camt.054 notification.",
   },
 ];
 
@@ -28,6 +28,7 @@ const PRIMITIVES = [
   { name: "Multicall3From", why: "Batches keep the payer as msg.sender, so every transfer and memo is attributed to the paying wallet." },
   { name: "USDC as gas", why: "Network fees are a plain USD expense. No second asset to value, no disposal events for gas." },
   { name: "Deterministic finality", why: "One confirmation is final, so an entry can be booked the moment it lands." },
+  { name: "EIP-7708 transfer logs", why: "Even a plain wallet send of native USDC leaves a log, so Tallypay sees every movement, not only ERC-20 calls." },
 ];
 
 const STATUSES = [
@@ -147,7 +148,8 @@ export default function Overview() {
           <h2 className="text-xl font-semibold">Works with any payer</h2>
           <p className="mt-2 text-sm text-slate-600">
             Tallypay doesn't move money. It reconciles whatever wallet you point it at, whether payouts were sent through Tallypay's
-            batch builder, a payouts provider, a Safe, or by hand. It complements payment rails rather than competing with them.
+            batch builder, a payouts provider, a Safe, or by hand, and whether money went out to payees or came in against your invoices.
+            Payment request links put your invoice id into the payer's memo so receipts reconcile themselves.
           </p>
         </div>
         <div>

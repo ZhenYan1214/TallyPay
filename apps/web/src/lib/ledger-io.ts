@@ -7,7 +7,7 @@ export type LoadedLedger = PayoutRunLedger & {
   scenario?: Record<string, string>;
 };
 
-export const CSV_COLUMNS = ["EndToEndId", "recipient", "amount", "token", "Purp", "CdtrRef", "Ustrd", "payeeName", "payeeCountry"] as const;
+export const CSV_COLUMNS = ["EndToEndId", "direction", "recipient", "payer", "amount", "token", "Purp", "CdtrRef", "Ustrd", "payeeName", "payeeCountry"] as const;
 
 /** Minimal RFC 4180 parser: quoted fields, escaped quotes, CRLF. */
 export function parseCsv(text: string): string[][] {
@@ -54,7 +54,9 @@ export function instructionsFromCsv(text: string): PayoutInstruction[] {
   };
   return body.map((row) => ({
     EndToEndId: get(row, "EndToEndId")!,
+    direction: (get(row, "direction")?.toLowerCase() === "in" ? "in" : "out") as "in" | "out",
     recipient: get(row, "recipient") as `0x${string}`,
+    payer: get(row, "payer") as `0x${string}` | undefined,
     amount: get(row, "amount")!,
     token: ((get(row, "token") ?? "USDC").toUpperCase() as TokenSymbol),
     Purp: get(row, "Purp"),

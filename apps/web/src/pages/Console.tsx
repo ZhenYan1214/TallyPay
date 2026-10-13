@@ -3,8 +3,10 @@ import { formatUnits, isAddress, type Address } from "viem";
 import { NETWORKS, fromUnits, observeAccount, parseActivity, txUrl, addressUrl, type AccountActivity, type NetworkId } from "@tallypay/sdk";
 import {
   buildJournal,
+  camt054Xml,
   isException,
   journalCsv,
+  qboJournalCsv,
   reconReportCsv,
   reconcile,
   xeroManualJournalCsv,
@@ -258,6 +260,9 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
     { what: "One seller on hold, never paid", expect: "missing", id: s.onHold },
     { what: "A ledger amount edited after the run; the on-chain anchor pinpoints which entry changed", expect: "mismatch", id: s.editedAfterRun },
     { what: "Treasury sent funds to an address the ledger does not know", expect: "unexpected", link: s.unrecordedTx },
+    ...(s.invoicePaidTx ? [{ what: "A seller paid a PromptBazaar invoice with a memo (money in, matched to a receivable)", expect: "matched" as const, link: s.invoicePaidTx }] : []),
+    ...(s.invoiceOpen ? [{ what: "An invoice PromptBazaar issued that nobody has paid yet", expect: "missing" as const, id: s.invoiceOpen }] : []),
+    ...(s.unrecordedIncomingTx ? [{ what: "Someone sent USDC to the treasury with a plain wallet send and no invoice", expect: "unexpected" as const, link: s.unrecordedIncomingTx }] : []),
   ];
   return (
     <section className="card p-5">
@@ -336,6 +341,43 @@ function Results({
         </div>
       </section>
 
+      {report.rollForward && (
+        <section className="card p-4">
+          <div className="flex flex-wrap items-baseline justify-between gap-2">
+            <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Balance roll-forward</div>
+            <div className="text-xs text-slate-500">Opening + receipts - payments - fees should equal closing. Anything else is money the scan did not explain.</div>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="mt-2 w-full text-sm">
+              <thead className="text-xs text-slate-500 uppercase">
+                <tr><th className="py-1 text-left">Token</th><th className="py-1 text-right">Opening</th><th className="py-1 text-right">Receipts</th><th className="py-1 text-right">Payments</th><th className="py-1 text-right">Fees</th><th className="py-1 text-right">Expected closing</th><th className="py-1 text-right">On-chain closing</th><th className="py-1 text-right">Unexplained</th></tr>
+              </thead>
+              <tbody>
+                {report.rollForward.filter((b) => b.opening !== 0n || b.closing !== 0n || b.inflow !== 0n || b.outflow !== 0n).map((b) => (
+                  <tr key={b.token} className="tabular-nums">
+                    <td className="py-1">{b.token}</td>
+                    <td className="py-1 text-right">{fromUnits(b.opening)}</td>
+                    <td className="py-1 text-right">{fromUnits(b.inflow)}</td>
+                    <td className="py-1 text-right">{fromUnits(b.outflow)}</td>
+                    <td className="py-1 text-right">{fromUnits(b.fees)}</td>
+                    <td className="py-1 text-right">{fromUnits(b.expectedClosing)}</td>
+                    <td className="py-1 text-right">{fromUnits(b.closing)}</td>
+                    <td className={`py-1 text-right font-medium ${b.unexplained === 0n ? "text-emerald-700" : "text-rose-700"}`}>{b.unexplained === 0n ? "0, fully explained" : fromUnits(b.unexplained)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </section>
+      )}
+
+      {report.ignoredIncoming.count > 0 && (
+        <Notice>
+          {report.ignoredIncoming.count} incoming transfer{report.ignoredIncoming.count === 1 ? "" : "s"} ({fromUnits(report.ignoredIncoming.units)} USDC) left out because this ledger has no receivables.
+          Add entries with <code className="font-mono text-xs">direction: "in"</code> to reconcile money coming in as well.
+        </Notice>
+      )}
+
       <div className="text-xs text-slate-500">
         {source.kind === "live" ? "Scanned" : "Snapshot of"} blocks {activity.fromBlock.toString()}–{activity.toBlock.toString()} on {network.name} for{" "}
         <ExternalLink href={addressUrl(network, activity.account)} className="font-mono">{shortHash(activity.account)}</ExternalLink> ·{" "}
@@ -377,7 +419,7 @@ function Results({
                 <tr>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Payment</th>
-                  <th className="px-4 py-3">Payee</th>
+                  <th className="px-4 py-3">Counterparty</th>
                   <th className="px-4 py-3 text-right">Ledger</th>
                   <th className="px-4 py-3 text-right">On-chain</th>
                   <th className="px-4 py-3">Transaction</th>
@@ -389,14 +431,17 @@ function Results({
                   const t = item.transfer;
                   return (
                     <tr key={idx} className={isException(item.status) ? "bg-rose-50/30" : ""}>
-                      <td className="px-4 py-3 align-top" title={STATUS_HELP[item.status]}><StatusBadge status={item.status} /></td>
+                      <td className="px-4 py-3 align-top" title={STATUS_HELP[item.status]}>
+                        <StatusBadge status={item.status} />
+                        <div className={`mt-0.5 text-[11px] ${item.direction === "in" ? "text-emerald-700" : "text-slate-400"}`}>{item.direction === "in" ? "money in" : "money out"}</div>
+                      </td>
                       <td className="px-4 py-3 align-top font-mono text-xs">
                         {item.instruction?.EndToEndId ?? (t?.memo?.decoded.kind === "payment" ? t.memo.decoded.memo.EndToEndId : "—")}
-                        {t?.memo ? <div className="mt-0.5 font-sans text-[11px] text-emerald-700">memo on-chain</div> : t ? <div className="mt-0.5 font-sans text-[11px] text-slate-400">no memo</div> : null}
+                        {t?.memo ? <div className="mt-0.5 font-sans text-[11px] text-emerald-700">memo on-chain</div> : t ? <div className="mt-0.5 font-sans text-[11px] text-slate-400">{t.native ? "native send, no memo" : "no memo"}</div> : null}
                       </td>
                       <td className="px-4 py-3 align-top">
                         {item.instruction?.payeeName ?? <span className="text-slate-400">Unknown</span>}
-                        <div className="font-mono text-[11px] text-slate-500">{shortHash(t?.to ?? item.instruction?.recipient ?? "")}</div>
+                        <div className="font-mono text-[11px] text-slate-500">{shortHash((item.direction === "in" ? (t?.from ?? item.instruction?.payer) : (t?.to ?? item.instruction?.recipient)) ?? "")}</div>
                       </td>
                       <td className="px-4 py-3 text-right align-top tabular-nums">{item.instruction ? item.instruction.amount : "—"}</td>
                       <td className="px-4 py-3 text-right align-top tabular-nums">{t ? fromUnits(t.amount) : "—"}</td>
@@ -466,6 +511,17 @@ function Results({
             body="Xero 'Import manual journals' layout. USDC lines only, rounded to cents. In Xero, set the USDC wallet up as a current asset, not a bank account."
             onClick={() => download(`tallypay-xero-${report.account.slice(2, 8)}.csv`, xeroManualJournalCsv(journal))}
           />
+          <ExportCard
+            title="QuickBooks Online journal import"
+            body="QBO 'Import journal entries' layout: account names, MM/dd/yyyy dates, balanced debits and credits, transaction hash in the description."
+            onClick={() => download(`tallypay-qbo-${report.account.slice(2, 8)}.csv`, qboJournalCsv(journal))}
+          />
+          <ExportCard
+            title="ISO 20022 camt.054 (XML)"
+            body="Bank-style debit/credit notification for the wallet, the same message family Circle Mint uses for statements. Carries EndToEndId, creditor reference, purpose code and the transaction hash per entry."
+            label="Download XML"
+            onClick={() => download(`tallypay-camt054-${report.account.slice(2, 8)}.xml`, camt054Xml(report), "application/xml")}
+          />
         </section>
       )}
     </div>
@@ -476,14 +532,14 @@ function StatusLabel({ status }: { status: ReconStatus }) {
   return <>{{ matched: "Matched", matched_by_intent: "By intent", mismatch: "Mismatch", missing: "Not paid", duplicate: "Duplicate", unexpected: "Unexpected" }[status]}</>;
 }
 
-function ExportCard({ title, body, onClick }: { title: string; body: string; onClick: () => void }) {
+function ExportCard({ title, body, onClick, label = "Download CSV" }: { title: string; body: string; onClick: () => void; label?: string }) {
   return (
     <div className="card flex flex-col justify-between gap-4 p-5">
       <div>
         <h3 className="font-semibold">{title}</h3>
         <p className="mt-1 text-sm text-slate-600">{body}</p>
       </div>
-      <button className="btn-secondary self-start" onClick={onClick}>Download CSV</button>
+      <button className="btn-secondary self-start" onClick={onClick}>{label}</button>
     </div>
   );
 }
