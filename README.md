@@ -12,6 +12,8 @@
 | **Built on** | Arc's predeployed `Memo` and `Multicall3From`, both verified deployed on mainnet. No custom contracts, no backend, no keys on a server. |
 
 > USDC settles in under a second. Books still take weeks. Payment rails for stablecoins are crowded; what happens after the money lands is not.
+>
+> Other Arc tools prove the money moved. Tieout proves the books are right.
 
 ## Try it in 60 seconds
 
@@ -19,6 +21,7 @@
 2. Open **Verify**, click **Use a demo payment**, then **Look up**. The payment is found from its `EndToEndId` alone, no transaction hash, through Arc's indexed `memoId`.
 3. Open **Pay a run → Request a payment**, fill in an amount, copy the link, open it. The payer's side is prefilled with your invoice id; when they pay, the receipt reconciles itself.
 4. Open **Journal entries** and **Export** to see the double-entry template, the Xero and QuickBooks import files, and the ISO 20022 camt.054 notification.
+5. No ledger? Clear it, paste any Arc wallet address and click **Statement for this wallet**: every movement, the balance roll-forward and a camt.054 for that wallet, from the chain alone.
 
 If a public RPC is down, the demo falls back to a snapshot of the same block range and says so; the explorer links stay live.
 
@@ -119,6 +122,7 @@ Inside a batch, each `Memo` event records `callDataHash = keccak256(data)` of th
 |---|---|---|
 | **memo** | `Memo` event in the same transaction, bound by `callDataHash` | The payer, when paying (EOA only on Arc) |
 | **reference** | `tp1-ref` memo published later by a trusted EOA, naming the transaction and the EndToEndId | Whoever the ledger owner trusts: an ops wallet attesting a Safe's payouts, a custodian's signer, the payee |
+| **manual** | A recorded decision: this entry, that transfer, with a note | A person, on an ambiguous pairing; still compared field by field, recorded in the audit bundle |
 | **intent** | Counterparty, token and amount agree and the pairing is unique both ways | Inferred; weakest, and the only grade that can be `ambiguous` |
 
 The reconciler always tries the stronger grade first, labels every settled item with the grade that settled it, and the Reconcile page offers to publish references for anything that only matched by intent. Arc's `Memo` is EOA-only; references are how payments from Safes, custodians and exchanges get the same evidence as payments from an EOA. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
@@ -167,7 +171,11 @@ Tieout doesn't move money for you. It reconciles whatever wallet you point it at
 
 **What about Safe and MPC wallets?** `Memo` is EOA-only on Arc today. Tieout first falls back to matching on counterparty, token and amount, labelled `matched_by_intent` so an accountant knows the evidence is weaker, and refuses to guess when the pairing is not unique. Then any trusted EOA can publish on-chain references for those payments, after which they reconcile as `matched` and are findable by id. Arc's docs suggest exactly this "separate EOA-signed memo transaction" as the workaround; Tieout gives it a schema and a button.
 
-**Why can't it just pick the oldest candidate when two pairings are possible?** Because an accountant would then be signing off on a guess. Modern Treasury, the best-documented commercial matcher, routes multiple candidates to manual review; so does Tieout. The held money sits in suspense and the roll-forward still ties.
+**Why can't it just pick the oldest candidate when two pairings are possible?** Because an accountant would then be signing off on a guess. Modern Treasury, the best-documented commercial matcher, routes multiple candidates to manual review; so does Tieout. The held money sits in suspense and the roll-forward still ties. The person then settles it with one click, the decision is recorded as evidence `manual` with a note, and publishing a reference makes it permanent on-chain.
+
+**What if the public RPC lies or drops logs?** The roll-forward catches amounts that do not tie; `callDataHash` and `LedgerHash` are recomputed, so a memo cannot be forged for a different transfer. For the rest, paste your own node or provider URL into the RPC field; it stays in your browser. Multi-RPC cross-checking is the natural next step.
+
+**How big a wallet can it handle?** The reader makes one `eth_getLogs` set per 9,000 blocks and one `getBlock` per distinct block with a transfer, four in flight, over a batching JSON-RPC transport. A wallet with a few hundred transfers a day scans in seconds; thousands a day should feed the same `AccountActivity` shape from an indexer instead of a browser.
 
 **Why does the anchor only cover its own transaction?** Runs get split: some entries are held back, some are paid separately. The anchor commits to what was actually paid in that transaction, recovered from the memos in it, so a held entry does not produce a false "ledger tampered" alarm.
 
@@ -199,7 +207,7 @@ docs/                             memo spec, architecture, integration guide, su
 
 - **No backend and no keys on a server.** The web app reads Arc directly from the browser. Payouts are signed by the user's own wallet (EIP-1193).
 - **No custom contracts.** Payments go through Arc's predeployed `Memo` (`0x5294…e505`) and `Multicall3From` (`0x522f…47D0`).
-- 44 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all three evidence grades, ambiguity, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
+- 47 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all four evidence grades, ambiguity and its manual resolution, statement mode, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
 
 ## Run it
 
@@ -210,7 +218,10 @@ npm install
 npm run typecheck
 npm test
 npm run dev --workspace @tieout/web
+npm run build            # builds @tieout/sdk and @tieout/recon to dist/ (publishable), then the web app
 ```
+
+The SDK and the reconciler are plain ESM packages with type declarations; `npm run build:packages` produces `dist/` and `npm publish` from each package directory would put them on npm. The web app and the scripts read the packages from source, so they never need a prior build.
 
 Read-only scripts need no key:
 
@@ -266,7 +277,7 @@ Journal entries are **templates for review by an accountant, not accounting or t
 - Arc's `Memo` requires an EOA caller. Smart-contract wallets fall back to intent matching, which is weaker when several open entries share the same counterparty and amount; the reconciler leaves ambiguous cases unmatched rather than guessing.
 - Intent matching only settles unique pairings; it does not yet use invoice due dates, amount tolerances or instalments, so a run with several identical payouts to one address needs memos or references to resolve.
 - EURC is supported by the SDK and the reconciler, but journal export needs a recorded FX rate before EURC lines can be booked in a USD ledger.
-- Browser scans are limited to 200,000 blocks per run. Longer periods need an indexer (Goldsky, The Graph and Envio support Arc).
+- Browser scans are limited to 200,000 blocks per run. Longer periods need an indexer (Goldsky, The Graph and Envio support Arc). Public RPCs still return the occasional HTTP 429 on bursts; the reader keeps four requests in flight behind a batching transport and viem retries, so scans complete, but your own RPC URL is faster.
 - Native USDC amounts below one millionth are floored; the exact 18-decimal figure is kept on the observation.
 - The Pay page sends from a browser wallet (EOA). It demonstrates the batch builder; a Safe-based payer would use the SDK's `buildPayoutRun` output through its own signing flow and still reconcile here.
 

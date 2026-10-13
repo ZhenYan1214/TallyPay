@@ -1,6 +1,6 @@
 # Integrating Tieout
 
-For a payout provider, a treasury tool or an invoicing app on Arc that wants its payments to reconcile without asking customers to copy transaction hashes. Three integration points, each a few lines. Everything is `@tieout/sdk` (viem underneath, no backend).
+For a payout provider, a treasury tool or an invoicing app on Arc that wants its payments to reconcile without asking customers to copy transaction hashes. Three integration points, each a few lines. Everything is `@tieout/sdk` (viem underneath, no backend). Both packages build to plain ESM with type declarations (`npm run build:packages`); until they are on npm, install them from the repository or vendor `packages/sdk` and `packages/recon`.
 
 ## 1. Emit memos when you pay (EOA payers)
 

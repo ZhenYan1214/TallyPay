@@ -219,6 +219,21 @@
 | 文件缺架構說明 | 審查「技術可信度」要看信任邊界 | `docs/ARCHITECTURE.md`：三種證據等級、資料流、信任邊界、刻意不做的事、失敗模式 | — |
 | 名稱撞名 | 審查搜尋看到別人 | 改名 Tieout | — |
 
+### 3.9 第五輪：把剩下的質疑全部處理（2026-10-13）
+
+| 質疑 | 處理 |
+|---|---|
+| ambiguous 之後呢？人要怎麼決定？ | 第四種證據「manual」：畫面上一鍵指定候選交易，仍逐欄比對（決定錯會顯示 mismatch），決定記進稽核包；之後可發布參考讓它永久上鏈 |
+| 沒有帳本就什麼都不能看 | 對帳單模式：任何錢包地址都能產出全部異動、餘額滾算、camt.054；審查員可拿任意主網地址試 |
+| 公開 RPC 限流、隱私、信任 | 可自訂 RPC URL（只存在瀏覽器）；JSON-RPC 批次傳輸；時間戳與收據四個並行 |
+| 大錢包效能 | 每個獨特區塊只查一次時間戳、收據平行抓；文件寫明請求形狀與量級，超過請接索引器 |
+| SDK 不能 `npm install` | 兩個套件可建置成 ESM + 型別宣告的 `dist/`，有 exports、files、repository、keywords；CI 會建置；網站與腳本仍直接讀原始碼 |
+| 讀鏈程式碼沒測試 | 用假 RPC 發出 Arc 真實事件形狀的測試（雙事件去重、原生轉帳、memo 綁定、錨點、參考、手續費、餘額、memoId 查詢、日期轉區塊），測試 47 個 |
+| 首頁引用來源 | 改引 EY 原文 |
+| 會計假設沒講 | README 補：應付應收已於發生時入帳的假設、原生 dust、Xero/QBO 檔案尚未匯入活帳套 |
+| 業者怎麼接 | `docs/INTEGRATION.md` |
+| 一句話差異化 | 「別人證明錢付出去了，Tieout 證明帳記對了」 |
+
 ---
 
 ## 4. 最終定位
@@ -359,7 +374,7 @@ ReconReport { items, anchors, summary }
 | 語言 | TypeScript | 前後端共用 SDK |
 | 鏈互動 | viem | 型別安全、輕量 |
 | 前端 | Vite + React + Tailwind v4 | 靜態網站，可部署在任何地方 |
-| 測試 | Vitest 5 | 38 個單元測試；`npm audit` 0 個漏洞 |
+| 測試 | Vitest 5 | 47 個單元測試；`npm audit` 0 個漏洞 |
 | 命令列 | tsx | 直接執行 TypeScript |
 | 部署 | GitHub Pages + Actions | 只需要 GitHub 帳號 |
 | 授權 | Apache-2.0 | — |
@@ -449,7 +464,8 @@ ReconReport { items, anchors, summary }
 | Reconcile：首頁一鍵自動執行 demo、情境導覽面板、RPC 失敗時改用快照 | ✅ |
 | Verify：憑 `EndToEndId` 查鏈上 memo，`callDataHash` 連結到轉帳 | ✅（測試網實測） |
 | 命令列：技術驗證、示範情境、對帳、gas 報告、快照、資金回收、測試錢包 | ✅ |
-| 單元測試 38 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + build | ✅ 全部通過 |
+| 單元測試 47 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + 套件建置 + 網站建置 | ✅ 全部通過 |
+| 人工決定、對帳單模式、自訂 RPC、批次傳輸、可發佈套件 | ✅ |
 | README（英文 + 中文簡介）、Memo 規格書、投稿稿、研究筆記、Apache-2.0 授權 | ✅ |
 | GitHub Pages 自動部署流程 | ✅（尚未推送） |
 

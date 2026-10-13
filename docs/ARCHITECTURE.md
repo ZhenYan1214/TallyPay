@@ -14,9 +14,12 @@ Every settled item in a Tieout report carries an `evidence` grade. The grades ar
 |---|---|---|---|
 | **memo** | A `Memo` event in the same transaction, bound to this exact inner call by `callDataHash` | The payer, at the moment of paying (EOA only on Arc) | Tempo `transferWithMemo`, Stellar memos, ISO 20022 `EndToEndId` |
 | **reference** | A `tp1-ref` memo published later by a trusted EOA, naming the transaction and the EndToEndId, sharing the payment's `memoId` | Anyone the ledger owner trusts: an ops wallet attesting a Safe's payouts, a custodian's signer, the payee | Arc docs' own workaround for smart-contract wallets ("separate EOA-signed memo transaction"); XRPL source-tag/destination-tag symmetry |
+| **manual** | A recorded decision naming the entry and the transfer, with a note | A person, on an ambiguous pairing; compared field by field like the others, so a wrong decision surfaces as a mismatch | Modern Treasury manual review; beancount-import's accepted-entry metadata |
 | **intent** | Counterparty, token and amount agree, and the pairing is unique in both directions | Nobody; it is inferred | Modern Treasury expected-payment rules, bank-statement matchers |
 
-Intent is deliberately the weakest and the most conservative. If two ledger entries could claim one transfer, or one entry could be settled by two transfers, nothing is matched: the entry and the transfers are reported as `ambiguous` with the candidates listed. A person decides, or publishes references, and the next run resolves it. This follows Modern Treasury's rule that multiple candidates go to manual review, and the Solana Pay lesson (CVE-2022-35917) that "found" is not "validated".
+Intent is deliberately the weakest and the most conservative. If two ledger entries could claim one transfer, or one entry could be settled by two transfers, nothing is matched: the entry and the transfers are reported as `ambiguous` with the candidates listed. A person decides in the UI (recorded as `manual`, with a note, in the audit bundle) or publishes references, and the pairing resolves. This follows Modern Treasury's rule that multiple candidates go to manual review, and the Solana Pay lesson (CVE-2022-35917) that "found" is not "validated".
+
+With no ledger at all, the same pipeline produces a **statement**: every movement listed, booked to suspense, with the roll-forward and the camt.054 export. That is the bank-statement equivalent for an Arc wallet, and the quickest way to see what Tieout reads from any address.
 
 ## 3. Data flow
 
@@ -47,6 +50,7 @@ Everything right of the ledger is deterministic given the chain. The audit bundl
 - **Memo ↔ transfer binding.** A memo belongs to a transfer when both are in the same transaction, the memo's `target` is the token, the memo follows the transfer in log order, and `keccak256(transfer(to, value)) == callDataHash`. Nearest preceding match wins, once. This is exact even for ten identical payments in one batch.
 - **Anchors and references** are memos wrapped around `transfer(sender, 0)`; the reader recognises them by prefix and never counts the zero-value self-transfer as money.
 - **Balances** are read at `fromBlock − 1` and `toBlock`. Public RPCs serve historical `balanceOf`, so the roll-forward needs no archive node. If a provider refuses, the roll-forward is simply absent, never wrong.
+- **Request shape.** Per 9,000-block chunk: two `eth_getLogs` for token transfers (out, in), two for the system emitter, one for memos. Then one `getBlock` per distinct block that carried a transfer or memo and one `getTransactionReceipt` per transaction the account sent, four in flight, over a JSON-RPC batching transport (20 ms window) so bursts collapse into single HTTP requests. Public endpoints still 429 occasionally; viem retries with backoff. Measured on the testnet demo range: 12 transfers, 1 anchor, 3 receipts, 2 balances, well under five seconds end to end.
 - **Fees** are collected only for transactions the account sent that moved tokens or wrote memos. A transaction the account sent for some other reason (an approval, a contract call) is not fetched; its fee then shows up in the roll-forward as "unexplained", which is the correct outcome: the scan says what it did not see.
 
 ## 5. Idempotency
@@ -60,7 +64,8 @@ Everything right of the ledger is deterministic given the chain. The audit bundl
 | Input | Trusted? | Why |
 |---|---|---|
 | Ledger file | Yes: it is the user's own books, loaded in the browser, never uploaded | The whole point is to check the chain against it |
-| Arc RPC responses | Yes, as data; the reconciler verifies hashes it can recompute (`callDataHash`, `LedgerHash`) and the roll-forward cross-checks totals | A lying RPC can hide transfers; it cannot forge a memo that hashes to a different transfer |
+| Arc RPC responses | Yes, as data; the reconciler verifies hashes it can recompute (`callDataHash`, `LedgerHash`) and the roll-forward cross-checks totals; the user can point the app at their own node | A lying RPC can hide transfers; it cannot forge a memo that hashes to a different transfer |
+| Recorded decisions | As the user's own assertions, labelled `manual`, still compared field by field | A decision that does not fit the transfer shows as a mismatch, not as a quiet match |
 | Memo contents from the account's own transactions | Yes | The account signed them |
 | Reference memos | Only from `trustedReferenceSigners` (the account itself plus signers the user names) | Anyone can publish a `tp1-ref` naming your transaction; only signers you chose are believed |
 | Payment request links | No: the page shows the recipient and amount and tells the payer to confirm them out of band; links can carry an expiry | A link is as trustworthy as whoever sent it |
