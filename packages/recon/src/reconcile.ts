@@ -11,7 +11,7 @@ import {
   type PayoutInstruction,
   type TokenSymbol,
   type TransferObservation,
-} from "@tallypay/sdk";
+} from "@tieout/sdk";
 
 export type ReconStatus =
   /** Memo EndToEndId, counterparty, amount and token all agree with the ledger. */
@@ -251,7 +251,7 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
       memo?.kind === "payment"
         ? [`Memo EndToEndId ${memo.memo.EndToEndId} is not in the ledger`]
         : memo
-          ? ["Memo present but not in Tallypay format"]
+          ? ["Memo present but not in Tieout format"]
           : [direction === "in" ? "Received with no memo and no receivable matches" : "No memo and no ledger entry matches this transfer"];
     if (transfer.native) notes.push("Native USDC transfer (wallet send), not an ERC-20 call");
     items.push({ status: "unexpected", direction, transfer, notes });

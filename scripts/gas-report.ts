@@ -1,5 +1,5 @@
 /**
- * Measures what a Tallypay run actually costs on Arc, from real receipts.
+ * Measures what a Tieout run actually costs on Arc, from real receipts.
  *
  *   npm run gas -- --network=arc-testnet 0xTXHASH [0xTXHASH ...]
  *   npm run gas -- apps/web/public/demo/promptbazaar-arc-testnet.json
@@ -10,7 +10,7 @@
  */
 import { readFileSync } from "node:fs";
 import { decodeEventLog, formatUnits, type Hex } from "viem";
-import { NETWORKS, memoEvent, transferEvent, type PayoutRunLedger } from "@tallypay/sdk";
+import { NETWORKS, memoEvent, transferEvent, type PayoutRunLedger } from "@tieout/sdk";
 import { clients, resolveNetwork } from "./env.js";
 
 const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));

@@ -8,8 +8,8 @@
  * time it was taken. Re-run after every demo run so the two stay in sync.
  */
 import { readFileSync, writeFileSync } from "node:fs";
-import { NETWORKS, observeAccount, serializeActivity, type PayoutRunLedger } from "@tallypay/sdk";
-import { reconcile } from "@tallypay/recon";
+import { NETWORKS, observeAccount, serializeActivity, type PayoutRunLedger } from "@tieout/sdk";
+import { reconcile } from "@tieout/recon";
 import { clients } from "./env.js";
 
 const file = process.argv.slice(2).find((a) => a.endsWith(".json"));

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { AnchorStatus, ReconStatus } from "@tallypay/recon";
+import type { AnchorStatus, ReconStatus } from "@tieout/recon";
 
 const STATUS_STYLE: Record<ReconStatus, { label: string; className: string }> = {
   matched: { label: "Matched", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },

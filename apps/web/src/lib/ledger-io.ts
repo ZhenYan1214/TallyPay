@@ -1,4 +1,4 @@
-import type { PayoutInstruction, PayoutRunLedger, TokenSymbol } from "@tallypay/sdk";
+import type { PayoutInstruction, PayoutRunLedger, TokenSymbol } from "@tieout/sdk";
 
 export type LoadedLedger = PayoutRunLedger & {
   /** Frozen chain scan to fall back on when the public RPC fails (demos only). */

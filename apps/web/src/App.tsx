@@ -50,7 +50,7 @@ export default function App() {
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
           <button onClick={() => navigate("overview")} className="flex items-center gap-2">
             <img src="./favicon.svg" alt="" className="h-7 w-7" />
-            <span className="text-lg font-semibold tracking-tight">Tallypay</span>
+            <span className="text-lg font-semibold tracking-tight">Tieout</span>
             <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 sm:inline">for Arc</span>
           </button>
           <nav className="flex gap-1 text-sm">
@@ -82,7 +82,7 @@ export default function App() {
 
       <footer className="border-t border-slate-200 bg-white">
         <div className="mx-auto flex max-w-6xl flex-col gap-1 px-4 py-4 text-xs text-slate-500 sm:flex-row sm:justify-between">
-          <span>Tallypay is an independent open-source project built on Arc. Not affiliated with Circle.</span>
+          <span>Tieout is an independent open-source project built on Arc. Not affiliated with Circle.</span>
           <span>Journal entries are templates for review by an accountant, not accounting or tax advice.</span>
         </div>
       </footer>

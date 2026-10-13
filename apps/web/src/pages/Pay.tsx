@@ -14,7 +14,7 @@ import {
   type NetworkId,
   type PayoutInstruction,
   type PayoutRunPlan,
-} from "@tallypay/sdk";
+} from "@tieout/sdk";
 import { ExternalLink, Notice } from "../components/ui.tsx";
 import { ensureNetwork, injectedProvider, publicClientFor } from "../lib/chain.ts";
 import { download, instructionsToCsv, readLedgerFile, shortHash, type LoadedLedger } from "../lib/ledger-io.ts";
@@ -201,7 +201,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
           <h1 className="text-2xl font-semibold tracking-tight">{tab === "send" ? "Pay a run with memos" : "Request a payment"}</h1>
           <p className="mt-1 text-sm text-slate-600">
             {tab === "send" ? (
-              <>One transaction from your own wallet: a run anchor plus one memo-tagged USDC transfer per payee, batched with Arc's native <code className="font-mono text-xs">Multicall3From</code>. Tallypay never holds keys or funds.</>
+              <>One transaction from your own wallet: a run anchor plus one memo-tagged USDC transfer per payee, batched with Arc's native <code className="font-mono text-xs">Multicall3From</code>. Tieout never holds keys or funds.</>
             ) : (
               <>Build a link that prefills the payer's side with your invoice id. When they pay through it, the memo carries your reference and the receipt reconciles itself.</>
             )}
@@ -271,7 +271,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
                   }}
                 />
               </label>
-              <button className="btn-secondary" onClick={() => download("tallypay-ledger-template.csv", instructionsToCsv(TEMPLATE))}>Download CSV template</button>
+              <button className="btn-secondary" onClick={() => download("tieout-ledger-template.csv", instructionsToCsv(TEMPLATE))}>Download CSV template</button>
               <label className="ml-2 flex items-center gap-2 text-sm text-slate-700">
                 <input type="checkbox" checked={anchor} onChange={(e) => setAnchor(e.target.checked)} /> Anchor the ledger hash on-chain
               </label>
@@ -331,7 +331,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
               </div>
               <p className="text-xs text-slate-500">
                 Memos carry only ISO 20022 identifiers (EndToEndId, PmtInfId, Purp, CdtrRef). Payee names stay in your ledger and are never written on-chain.
-                Before sending, Tallypay checks Arc for an earlier anchor with the same run id so a double-submitted run cannot pay everyone twice.
+                Before sending, Tieout checks Arc for an earlier anchor with the same run id so a double-submitted run cannot pay everyone twice.
               </p>
               <div className="flex flex-wrap items-center gap-3">
                 <button className="btn-primary" disabled={!!busy || !!sent} onClick={send}>
@@ -425,7 +425,7 @@ function RequestForm({ networkId, setNetworkId }: { networkId: NetworkId; setNet
           <p className="text-xs text-slate-500">
             Send this to the payer. Opening it prefills the Pay page with one memo-tagged transfer; they sign from their own wallet. The memo carries{" "}
             <span className="font-mono">{id.trim()}</span>, so your Reconcile run will match the receipt without a transaction hash.
-            A payer whose wallet cannot call Memo (Safe, MPC) can still pay by plain transfer; Tallypay then matches the receipt on amount and payer.
+            A payer whose wallet cannot call Memo (Safe, MPC) can still pay by plain transfer; Tieout then matches the receipt on amount and payer.
           </p>
           <div className="flex flex-wrap gap-2">
             <button

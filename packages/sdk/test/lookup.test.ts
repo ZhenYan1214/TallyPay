@@ -10,7 +10,7 @@ import {
   transferCallData,
   transferEvent,
   type AccountActivity,
-} from "@tallypay/sdk";
+} from "@tieout/sdk";
 
 const PAYER = "0x00000000000000000000000000000000000000ff" as Address;
 const A = "0x00000000000000000000000000000000000000a1" as Address;

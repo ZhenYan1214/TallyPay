@@ -57,7 +57,7 @@ export function serializeActivity(activity: AccountActivity, takenAt = new Date(
 
 export function parseActivity(json: string): ActivitySnapshot {
   const raw = JSON.parse(json) as { version: number; takenAt: string; activity: Json<AccountActivity> };
-  if (raw.version !== 1 || !raw.activity) throw new Error("Not a Tallypay activity snapshot");
+  if (raw.version !== 1 || !raw.activity) throw new Error("Not a Tieout activity snapshot");
   const a = raw.activity;
   const activity: AccountActivity = {
     network: a.network,

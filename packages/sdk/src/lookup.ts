@@ -38,7 +38,7 @@ export interface MemoLookupResult {
   transfer?: WrappedTransfer;
 }
 
-/** Accepts either a raw 32-byte memoId or an EndToEndId, which is hashed the Tallypay way. */
+/** Accepts either a raw 32-byte memoId or an EndToEndId, which is hashed the Tieout way. */
 export function memoIdFor(input: string): Hex {
   const trimmed = input.trim();
   if (isHex(trimmed) && trimmed.length === 66) return trimmed.toLowerCase() as Hex;

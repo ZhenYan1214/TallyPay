@@ -3,13 +3,13 @@
  * browser extension. Loaded only by `npm run dev` with `?testwallet` in the
  * URL, and only for Arc Testnet. The production build never includes it.
  *
- * Put a throwaway testnet key in sessionStorage under "tallypay:testkey".
+ * Put a throwaway testnet key in sessionStorage under "tieout:testkey".
  */
 import { createPublicClient, createWalletClient, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { ARC_TESTNET, toViemChain } from "@tallypay/sdk";
+import { ARC_TESTNET, toViemChain } from "@tieout/sdk";
 
-const key = sessionStorage.getItem("tallypay:testkey") as Hex | null;
+const key = sessionStorage.getItem("tieout:testkey") as Hex | null;
 if (key) {
   const chain = toViemChain(ARC_TESTNET);
   const account = privateKeyToAccount(key);
@@ -18,7 +18,7 @@ if (key) {
   const chainIdHex = `0x${ARC_TESTNET.chainId.toString(16)}`;
 
   (window as unknown as { ethereum: unknown }).ethereum = {
-    isTallypayTestWallet: true,
+    isTieoutTestWallet: true,
     async request({ method, params }: { method: string; params?: unknown[] }) {
       switch (method) {
         case "eth_requestAccounts":
@@ -47,5 +47,5 @@ if (key) {
       }
     },
   };
-  console.info(`[tallypay] test wallet ${account.address} on Arc Testnet`);
+  console.info(`[tieout] test wallet ${account.address} on Arc Testnet`);
 }

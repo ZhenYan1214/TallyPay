@@ -1,6 +1,6 @@
-# Tallypay
+# Tieout
 
-**The reconciliation layer for USDC on Arc.** Tallypay matches every USDC payment and receipt on Arc to the ledger entry it settles, flags what doesn't match, rolls the wallet balance forward against the chain, and turns the rest into journal entries an accountant can import.
+**The reconciliation layer for USDC on Arc.** Tieout matches every USDC payment and receipt on Arc to the ledger entry it settles, flags what doesn't match, rolls the wallet balance forward against the chain, and turns the rest into journal entries an accountant can import.
 
 | | |
 |---|---|
@@ -30,7 +30,7 @@ Paying in USDC is solved. Recording it is not.
 - Circle's own position is that stablecoins are an additive rail, with the ERP or treasury system "holding the audit and accounting position" ([Circle, June 2026](https://www.circle.com/current/stablecoins-are-an-additive-rail)). Arc's Treasury blueprint names the gap: "reconciliation can require multiple teams and systems" ([Arc, Apr 2026](https://www.arc.io/blog/how-arc-supports-treasury-management-arc-blueprints)).
 - The tools that automate this (Bitwave, Cryptio) are quote-priced enterprise subledgers that do not list Arc. The Arc-native payout tools that exist stop at the receipt and say so. Nothing on Arc produces a journal entry.
 
-Arc is unusually well suited to fix this: memos live in the same transaction as the transfer, batches keep the payer as `msg.sender`, gas is paid in dollars, finality is deterministic, and every native value movement leaves a log. Arc describes its memos as being for "stablecoin payment reconciliation" and "batch payouts and disbursements" ([Arc, June 2026](https://community.arc.io/home/blogs/arc-transaction-memos-structured-transaction-context-for-financial-workflows-on-arc-2026-06-18)). Tallypay is the layer that turns those properties into books.
+Arc is unusually well suited to fix this: memos live in the same transaction as the transfer, batches keep the payer as `msg.sender`, gas is paid in dollars, finality is deterministic, and every native value movement leaves a log. Arc describes its memos as being for "stablecoin payment reconciliation" and "batch payouts and disbursements" ([Arc, June 2026](https://community.arc.io/home/blogs/arc-transaction-memos-structured-transaction-context-for-financial-workflows-on-arc-2026-06-18)). Tieout is the layer that turns those properties into books.
 
 ## What it does
 
@@ -106,13 +106,13 @@ This is a proposal, not an official Arc standard. If Arc publishes a canonical m
 
 ## How a memo is tied to its transfer
 
-Inside a batch, each `Memo` event records `callDataHash = keccak256(data)` of the call it wrapped. Tallypay recomputes `keccak256(transfer(to, value))` for every observed USDC `Transfer` and links it to the memo in the same transaction with the same target and hash. This works for any number of payments per transaction, and it is what the Verify page shows on screen. Finding a memo is not validating a payment: the reconciler still checks counterparty, token, amount and direction, and settles each id at most once.
+Inside a batch, each `Memo` event records `callDataHash = keccak256(data)` of the call it wrapped. Tieout recomputes `keccak256(transfer(to, value))` for every observed USDC `Transfer` and links it to the memo in the same transaction with the same target and hash. This works for any number of payments per transaction, and it is what the Verify page shows on screen. Finding a memo is not validating a payment: the reconciler still checks counterparty, token, amount and direction, and settles each id at most once.
 
 ## Precedents on other chains
 
-Tallypay does not invent the pattern; it brings to Arc what the payment systems that work in production already rely on.
+Tieout does not invent the pattern; it brings to Arc what the payment systems that work in production already rely on.
 
-| System | Mechanism | What Tallypay takes from it |
+| System | Mechanism | What Tieout takes from it |
 |---|---|---|
 | **Stellar** | Transaction memos; [SEP-29](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0029.md) `memo_required`; [SEP-31](https://github.com/stellar/stellar-protocol/blob/master/ecosystem/sep-0031.md) where the receiver allocates the memo | Identifier in the transaction; receiver-allocated ids for receivables |
 | **Solana Pay** | [Reference keys](https://docs.solanapay.com/spec) indexed by validators, found with `getSignaturesForAddress`, then `validateTransfer` | `memoId` is the index; Verify is `findReference`; find and validate are separate steps |
@@ -125,14 +125,14 @@ Arc's `Memo` is richer than the chain mechanisms above: the memo is arbitrary by
 
 ## How this differs from existing tools
 
-| | Covers | Arc | Where Tallypay sits |
+| | Covers | Arc | Where Tieout sits |
 |---|---|---|---|
-| Circle Mint statements (camt.053) | Mint account activity | yes | Tallypay reconciles any wallet and emits the sibling camt.054 for it; they compose |
+| Circle Mint statements (camt.053) | Mint account activity | yes | Tieout reconciles any wallet and emits the sibling camt.054 for it; they compose |
 | Bitwave, Cryptio | Multi-chain crypto accounting, DeFi, impairment | not listed | Single chain, single asset, open source; the hard parts of crypto accounting mostly vanish on Arc |
-| Request Finance, Coinbase Business | Invoicing plus payment, accounting sync | no | Payment-side; Tallypay is payment-agnostic and complements them |
-| Arc-native payout batchers | Sending batched USDC with references | yes | They stop at the receipt; Tallypay starts there: both directions, exceptions, roll-forward, journals |
+| Request Finance, Coinbase Business | Invoicing plus payment, accounting sync | no | Payment-side; Tieout is payment-agnostic and complements them |
+| Arc-native payout batchers | Sending batched USDC with references | yes | They stop at the receipt; Tieout starts there: both directions, exceptions, roll-forward, journals |
 
-Tallypay doesn't move money for you. It reconciles whatever wallet you point it at, whether payouts were sent through Tallypay's batch builder, a payouts provider, a Safe, or by hand, and whether money went out to payees or came in against invoices.
+Tieout doesn't move money for you. It reconciles whatever wallet you point it at, whether payouts were sent through Tieout's batch builder, a payouts provider, a Safe, or by hand, and whether money went out to payees or came in against invoices.
 
 ## Design decisions a reviewer will ask about
 
@@ -142,7 +142,7 @@ Tallypay doesn't move money for you. It reconciles whatever wallet you point it 
 
 **Why both directions?** B2B is the largest slice of real stablecoin payments, and "which invoice does this receipt settle" is the receivables version of the same problem. The engine treats a receivable as an entry with `direction: "in"`; the payment request link lets the payee put its id into the payer's memo.
 
-**Why read the EIP-7708 system log?** Because a wallet's plain "send" of USDC is a native value transfer that never touches the ERC-20 contract. An indexer that reads only `0x3600…` misses it. Tallypay reads both logs and drops the system one when the ERC-20 twin is present.
+**Why read the EIP-7708 system log?** Because a wallet's plain "send" of USDC is a native value transfer that never touches the ERC-20 contract. An indexer that reads only `0x3600…` misses it. Tieout reads both logs and drops the system one when the ERC-20 twin is present.
 
 **Why JSON memos and not ABI encoding?** Legible on explorers and in audit files, decodable without tooling, keys map one-to-one to ISO 20022. The cost is negligible next to the per-transaction base fee (see the gas table). The spec reserves a `tp2:` prefix for a binary encoding if that ever changes.
 
@@ -150,7 +150,7 @@ Tallypay doesn't move money for you. It reconciles whatever wallet you point it 
 
 **Why a zero-value self-transfer for the anchor?** `Memo` needs an inner call to wrap. A `transfer(payer, 0)` is the cheapest harmless one. It is filtered out of every report.
 
-**What about Safe and MPC wallets?** `Memo` is EOA-only on Arc today. Tallypay falls back to matching on counterparty, token and amount, and labels those matches `matched_by_intent` so an accountant knows the evidence is weaker.
+**What about Safe and MPC wallets?** `Memo` is EOA-only on Arc today. Tieout falls back to matching on counterparty, token and amount, and labels those matches `matched_by_intent` so an accountant knows the evidence is weaker.
 
 **Why does the anchor only cover its own transaction?** Runs get split: some entries are held back, some are paid separately. The anchor commits to what was actually paid in that transaction, recovered from the memos in it, so a held entry does not produce a false "ledger tampered" alarm.
 
@@ -173,9 +173,9 @@ Verified with real testnet transactions ([example](https://explorer.testnet.arc.
 ## Architecture
 
 ```
-packages/sdk     @tallypay/sdk    networks, ABIs, memo codec, ledger hashing, batch builder, log reader (ERC-20 + EIP-7708), memoId lookup, snapshots
-packages/recon   @tallypay/recon  reconciliation engine (both directions, variance, roll-forward), anchor check, journal builder, CSV / Xero / QBO / camt.054
-apps/web         @tallypay/web    static React app: Overview, Reconcile, Verify, Pay a run, Request a payment
+packages/sdk     @tieout/sdk    networks, ABIs, memo codec, ledger hashing, batch builder, log reader (ERC-20 + EIP-7708), memoId lookup, snapshots
+packages/recon   @tieout/recon  reconciliation engine (both directions, variance, roll-forward), anchor check, journal builder, CSV / Xero / QBO / camt.054
+apps/web         @tieout/web    static React app: Overview, Reconcile, Verify, Pay a run, Request a payment
 scripts/                          CLI: spike, PromptBazaar scenario, reconcile, gas report, snapshot, sweep
 docs/                             memo spec, submission kit, research notes (zh-TW), project plan (zh-TW)
 ```
@@ -192,7 +192,7 @@ Requirements: Node.js 20+.
 npm install
 npm run typecheck
 npm test
-npm run dev --workspace @tallypay/web
+npm run dev --workspace @tieout/web
 ```
 
 Read-only scripts need no key:
@@ -261,13 +261,13 @@ Journal entries are **templates for review by an accountant, not accounting or t
 
 ## License
 
-Apache-2.0. Tallypay is an independent open-source project built on Arc and is not affiliated with Circle.
+Apache-2.0. Tieout is an independent open-source project built on Arc and is not affiliated with Circle.
 
 ---
 
 ## 中文簡介
 
-Tallypay 是 Arc 上的對帳層：把 Arc 上每一筆 USDC 付款與收款對到帳本上的那一筆，抓出異常，用鏈上餘額滾算確認沒有漏掉任何一塊錢，並把其餘的轉成會計師可以匯入的分錄。
+Tieout 是 Arc 上的對帳層：把 Arc 上每一筆 USDC 付款與收款對到帳本上的那一筆，抓出異常，用鏈上餘額滾算確認沒有漏掉任何一塊錢，並把其餘的轉成會計師可以匯入的分錄。
 
 - 只用 Arc 原生的 `Memo` 與 `Multicall3From`（主網已確認部署），沒有自訂合約、沒有後端、不保管任何私鑰
 - 付出去與收進來都對：應付（付款批次）與應收（發票）同一個引擎；請款連結讓付款方的 Memo 自動帶上你的發票號

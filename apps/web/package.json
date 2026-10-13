@@ -1,5 +1,5 @@
 {
-  "name": "@tallypay/web",
+  "name": "@tieout/web",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -11,8 +11,8 @@
   "dependencies": {
     "react": "^19.2.8",
     "react-dom": "^19.2.8",
-    "@tallypay/sdk": "0.1.0",
-    "@tallypay/recon": "0.1.0",
+    "@tieout/sdk": "0.1.0",
+    "@tieout/recon": "0.1.0",
     "viem": "^2.21.0"
   },
   "devDependencies": {

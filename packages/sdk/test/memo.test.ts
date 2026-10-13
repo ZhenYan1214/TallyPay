@@ -11,7 +11,7 @@ import {
   multicall3FromAbi,
   paymentMemoId,
   type PayoutInstruction,
-} from "@tallypay/sdk";
+} from "@tieout/sdk";
 
 const A = "0x00000000000000000000000000000000000000a1" as Address;
 const B = "0x00000000000000000000000000000000000000b2" as Address;

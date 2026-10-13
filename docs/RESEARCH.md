@@ -1,4 +1,4 @@
-# 研究筆記：市場、Arc 生態、同類機制，以及 Tallypay 該怎麼定位
+# 研究筆記：市場、Arc 生態、同類機制，以及 Tieout 該怎麼定位
 
 整理日期：2026-10-13。三份研究（Circle Arc 現況、穩定幣支付與對帳市場、其他鏈已上線的對帳機制）的綜合。每一項數字後面都有來源；標 **[未驗證]** 的是只有二手來源或原始文件抓不到的。
 
@@ -28,7 +28,7 @@
 
 ### 1.3 Circle 自己怎麼說 Memo 是做什麼的
 
-這對我們最重要，因為它等於官方替 Tallypay 背書：
+這對我們最重要，因為它等於官方替 Tieout 背書：
 
 - Arc 部落格：memo 讓「付款、撥款與更廣泛的金融活動更容易追蹤、對帳、連接到下游系統」，由「跑會計、報表、營運的鏈下系統」消費。舉例：**PSP 撥款**「在批次裡每筆轉帳附上唯一撥款參考」、金融科技營運「把存提款對回正確的使用者、帳戶、流程」。[來源](https://www.arc.io/blog/arc-transaction-memos-structured-context-for-onchain-transactions)
 - 社群文章列的用途：「穩定幣付款對帳」、「批次撥款」、「存提款歸屬」、「使用者與帳戶對應」、「需要結構化上下文的報表與營運流程」。[來源](https://community.arc.io/home/blogs/arc-transaction-memos-structured-transaction-context-for-financial-workflows-on-arc-2026-06-18)
@@ -45,7 +45,7 @@
 - Circle Mint 的對外格式是 **ISO 20022 camt.053 XML** 日報表（含 TransactionHash、CustomReferenceId 等）。[來源](https://developers.circle.com/circle-mint/references/camt053-statements)
 - Request for Builders 的四個方向裡有「無國界薪資：付給十二個國家的四十個人要像一個簡單的流程」。[來源](https://www.arc.io/blog/the-unfinished-business-of-finance-machine-commerce-and-global-money) 我們的 demo 剛好是十二個國家的十二個賣家。
 
-**結論：Circle 把「對帳」當成痛點反覆提、把 Memo 當成解法的原語、把 ERP 當成系統記錄，但自己沒有做「從 Memo 事件到 ERP 格式」這一段。這一段就是 Tallypay。**
+**結論：Circle 把「對帳」當成痛點反覆提、把 Memo 當成解法的原語、把 ERP 當成系統記錄，但自己沒有做「從 Memo 事件到 ERP 格式」這一段。這一段就是 Tieout。**
 
 ### 1.5 黑客松與補助的訊號
 
@@ -113,11 +113,11 @@
 
 ---
 
-## 4. 對 Tallypay 的結論
+## 4. 對 Tieout 的結論
 
 ### 4.1 定位（一句話）
 
-「Circle 說 Memo 是為了對帳、ERP 是系統記錄；Tallypay 就是 Memo 事件到 ERP 之間那一段，開源，兩個方向都做。」
+「Circle 說 Memo 是為了對帳、ERP 是系統記錄；Tieout 就是 Memo 事件到 ERP 之間那一段，開源，兩個方向都做。」
 
 ### 4.2 需求放大，但要誠實
 

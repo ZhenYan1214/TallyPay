@@ -1,4 +1,4 @@
-import { fromUnits, toUnits } from "@tallypay/sdk";
+import { fromUnits, toUnits } from "@tieout/sdk";
 import type { JournalEntry } from "./journal.js";
 import type { ReconReport } from "./reconcile.js";
 

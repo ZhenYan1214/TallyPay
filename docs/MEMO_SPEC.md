@@ -1,6 +1,6 @@
-# Tallypay memo format `tp1` (proposal)
+# Tieout memo format `tp1` (proposal)
 
-Status: proposal, version 1. Implemented in `@tallypay/sdk` (`packages/sdk/src/memo.ts`). Not an official Arc or Circle standard. If Arc publishes a canonical payment-memo schema, `tp1` should be retired in favour of it and the SDK will decode both during a transition.
+Status: proposal, version 1. Implemented in `@tieout/sdk` (`packages/sdk/src/memo.ts`). Not an official Arc or Circle standard. If Arc publishes a canonical payment-memo schema, `tp1` should be retired in favour of it and the SDK will decode both during a transition.
 
 ## 1. Goal
 
@@ -128,7 +128,7 @@ A typical payment memo is 100–130 bytes of calldata plus one event. Measured o
 
 ## 10. Versioning and reserved fields
 
-The prefix is the version. A future `tp2:` may switch to a binary encoding or add fields; readers should treat unknown prefixes as "memo present, not in Tallypay format" and fall back to intent matching, which is what the reference reconciler does today.
+The prefix is the version. A future `tp2:` may switch to a binary encoding or add fields; readers should treat unknown prefixes as "memo present, not in Tieout format" and fall back to intent matching, which is what the reference reconciler does today.
 
 Reserved for `tp1.1`, not yet implemented:
 

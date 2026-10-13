@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { type Address, type Hex } from "viem";
-import { paymentMemoId, toUnits, type AccountActivity, type PayoutInstruction, type TransferObservation } from "@tallypay/sdk";
-import { buildJournal, camt054Xml, qboJournalCsv, reconcile } from "@tallypay/recon";
+import { paymentMemoId, toUnits, type AccountActivity, type PayoutInstruction, type TransferObservation } from "@tieout/sdk";
+import { buildJournal, camt054Xml, qboJournalCsv, reconcile } from "@tieout/recon";
 
 const ME = "0x00000000000000000000000000000000000000ee" as Address;
 const addr = (n: number) => `0x${n.toString(16).padStart(40, "0")}` as Address;

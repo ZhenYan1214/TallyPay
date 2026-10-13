@@ -8,8 +8,8 @@ import {
   type AccountActivity,
   type PayoutInstruction,
   type TransferObservation,
-} from "@tallypay/sdk";
-import { buildJournal, journalCsv, reconcile, xeroManualJournalCsv } from "@tallypay/recon";
+} from "@tieout/sdk";
+import { buildJournal, journalCsv, reconcile, xeroManualJournalCsv } from "@tieout/recon";
 
 const PAYER = "0x00000000000000000000000000000000000000Ff" as Address;
 const addr = (n: number) => `0x${n.toString(16).padStart(40, "0")}` as Address;

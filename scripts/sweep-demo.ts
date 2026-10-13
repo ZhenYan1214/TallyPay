@@ -9,7 +9,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { createWalletClient, formatUnits, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { toViemChain, MIN_MAX_FEE_PER_GAS } from "@tallypay/sdk";
+import { toViemChain, MIN_MAX_FEE_PER_GAS } from "@tieout/sdk";
 import { clients, resolveNetwork, rpcFor } from "./env.js";
 import { demoWallet } from "./demo-wallets.js";
 

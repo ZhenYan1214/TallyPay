@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { createPublicClient, createWalletClient, http, type Hex } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
-import { NETWORKS, toViemChain, type ArcNetwork, type NetworkId } from "@tallypay/sdk";
+import { NETWORKS, toViemChain, type ArcNetwork, type NetworkId } from "@tieout/sdk";
 
 export function resolveNetwork(argv = process.argv): ArcNetwork {
   const flag = argv.find((a) => a.startsWith("--network="))?.split("=")[1] ?? "arc-testnet";

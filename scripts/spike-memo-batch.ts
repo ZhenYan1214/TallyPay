@@ -6,7 +6,7 @@
  *   npm run spike
  */
 import { decodeEventLog, keccak256, stringToHex, type Address } from "viem";
-import { buildPayoutRun, erc20Abi, memoAbi, fromUnits, decodeMemo, MIN_MAX_FEE_PER_GAS } from "@tallypay/sdk";
+import { buildPayoutRun, erc20Abi, memoAbi, fromUnits, decodeMemo, MIN_MAX_FEE_PER_GAS } from "@tieout/sdk";
 import { clients, resolveNetwork } from "./env.js";
 
 const network = resolveNetwork();
@@ -31,8 +31,8 @@ const plan = buildPayoutRun({
   payer: account!.address,
   PmtInfId: runId,
   instructions: [
-    { EndToEndId: `${runId}-1`, recipient: recipient("tallypay-spike-a"), amount: "0.01", token: "USDC", Purp: "COMM" },
-    { EndToEndId: `${runId}-2`, recipient: recipient("tallypay-spike-b"), amount: "0.02", token: "USDC", Purp: "COMM", CdtrRef: "INV-42" },
+    { EndToEndId: `${runId}-1`, recipient: recipient("tieout-spike-a"), amount: "0.01", token: "USDC", Purp: "COMM" },
+    { EndToEndId: `${runId}-2`, recipient: recipient("tieout-spike-b"), amount: "0.02", token: "USDC", Purp: "COMM", CdtrRef: "INV-42" },
   ],
 });
 

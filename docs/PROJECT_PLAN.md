@@ -1,4 +1,4 @@
-# Tallypay 專案規劃書
+# Tieout 專案規劃書
 
 > Arc 上的對帳層：讓 Arc 上的 USDC 金流，自動對到帳本、抓出異常、變成會計分錄。
 >
@@ -27,7 +27,7 @@
 
 ## 1. 專案一句話
 
-**Tallypay：Arc 的對帳層。不管錢是誰付的、用什麼錢包付的，都能自動對到帳單、抓出異常、變成會計分錄。**
+**Tieout：Arc 的對帳層。不管錢是誰付的、用什麼錢包付的，都能自動對到帳單、抓出異常、變成會計分錄。**
 
 - 不搬錢、不碰私鑰，只做「錢付出去之後」的事
 - 只用 Arc 原生功能（`Memo`、`Multicall3From`），沒有自訂合約
@@ -209,21 +209,21 @@
 
 ### 4.1 價值主張
 
-> 其他付款工具只負責「把錢送到」，記帳是你家的事；Tallypay 讓錢付出去的同時，帳就已經記好了。
+> 其他付款工具只負責「把錢送到」，記帳是你家的事；Tieout 讓錢付出去的同時，帳就已經記好了。
 
 ### 4.2 跟生態的關係：互補，不是競爭
 
 ```
            付款方式（任何一種都可以）
   ┌──────────────┬──────────────┬──────────────┬──────────────┐
-  │ Tallypay 批次 │ Circle Mint  │ Noah / Cycles │ Safe / 手動  │
+  │ Tieout 批次 │ Circle Mint  │ Noah / Cycles │ Safe / 手動  │
   └──────┬───────┴──────┬───────┴──────┬───────┴──────┬───────┘
          └──────────────┴───────┬──────┴──────────────┘
                                 ▼
                      Arc 鏈上的 USDC 金流
                                 ▼
                     ┌───────────────────────┐
-                    │  Tallypay 對帳層       │
+                    │  Tieout 對帳層       │
                     │  Memo 比對 + 意圖比對   │
                     └───────────┬───────────┘
                                 ▼
@@ -298,10 +298,10 @@ tp1-run:{"PmtInfId":"PB-202610-ELLE","NbOfTxs":10,"CtrlSum":"1.367","LedgerHash"
 ```
 Circle_arc/
 ├── packages/
-│   ├── sdk/        @tallypay/sdk    網路設定、ABI、Memo 編解碼、帳本雜湊、批次組裝、鏈上讀取（ERC-20 + EIP-7708）、memoId 查詢、掃描快照
-│   └── recon/      @tallypay/recon  對帳引擎（雙向、差額、餘額滾算）、錨點驗證、分錄產生、CSV / Xero / QBO / camt.054 匯出
+│   ├── sdk/        @tieout/sdk    網路設定、ABI、Memo 編解碼、帳本雜湊、批次組裝、鏈上讀取（ERC-20 + EIP-7708）、memoId 查詢、掃描快照
+│   └── recon/      @tieout/recon  對帳引擎（雙向、差額、餘額滾算）、錨點驗證、分錄產生、CSV / Xero / QBO / camt.054 匯出
 ├── apps/
-│   └── web/        @tallypay/web    純前端網站：Overview、Reconcile、Verify、Pay a run、Request a payment
+│   └── web/        @tieout/web    純前端網站：Overview、Reconcile、Verify、Pay a run、Request a payment
 ├── scripts/                         命令列工具：技術驗證、示範情境、對帳、gas 報告、快照、回收、測試錢包
 ├── docs/                            本規劃書、Memo 規格書（MEMO_SPEC.md）、投稿稿（SUBMISSION.md）、研究筆記（RESEARCH.md）
 └── .github/workflows/pages.yml      推上 GitHub 自動測試、建置、部署

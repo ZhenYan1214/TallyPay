@@ -1,5 +1,5 @@
 import { createPublicClient, http, type PublicClient } from "viem";
-import { NETWORKS, toViemChain, type NetworkId } from "@tallypay/sdk";
+import { NETWORKS, toViemChain, type NetworkId } from "@tieout/sdk";
 
 const cache = new Map<NetworkId, PublicClient>();
 

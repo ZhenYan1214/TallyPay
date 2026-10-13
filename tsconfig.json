@@ -13,8 +13,8 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@tallypay/sdk": ["packages/sdk/src/index.ts"],
-      "@tallypay/recon": ["packages/recon/src/index.ts"]
+      "@tieout/sdk": ["packages/sdk/src/index.ts"],
+      "@tieout/recon": ["packages/recon/src/index.ts"]
     }
   },
   "include": ["packages/*/src/**/*.ts", "packages/*/test/**/*.ts", "scripts/**/*.ts"]

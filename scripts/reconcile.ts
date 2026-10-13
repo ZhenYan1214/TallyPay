@@ -6,8 +6,8 @@
  */
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { NETWORKS, observeAccount, fromUnits, type PayoutRunLedger } from "@tallypay/sdk";
-import { buildJournal, camt054Xml, journalCsv, qboJournalCsv, reconReportCsv, reconcile, xeroManualJournalCsv } from "@tallypay/recon";
+import { NETWORKS, observeAccount, fromUnits, type PayoutRunLedger } from "@tieout/sdk";
+import { buildJournal, camt054Xml, journalCsv, qboJournalCsv, reconReportCsv, reconcile, xeroManualJournalCsv } from "@tieout/recon";
 import { formatUnits } from "viem";
 import { clients } from "./env.js";
 

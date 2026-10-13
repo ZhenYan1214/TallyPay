@@ -37,7 +37,7 @@ import {
   MIN_MAX_FEE_PER_GAS,
   type PayoutInstruction,
   type PayoutRunLedger,
-} from "@tallypay/sdk";
+} from "@tieout/sdk";
 import { clients, resolveNetwork, rpcFor } from "./env.js";
 import { demoWallet } from "./demo-wallets.js";
 

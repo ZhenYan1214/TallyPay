@@ -1,5 +1,5 @@
 import { Fragment, useEffect, useState } from "react";
-import { NETWORKS, addressUrl, findMemos, fromUnits, memoIdFor, txUrl, type MemoLookupResult, type NetworkId } from "@tallypay/sdk";
+import { NETWORKS, addressUrl, findMemos, fromUnits, memoIdFor, txUrl, type MemoLookupResult, type NetworkId } from "@tieout/sdk";
 import { ExternalLink, Notice } from "../components/ui.tsx";
 import { publicClientFor } from "../lib/chain.ts";
 import { shortHash, type LoadedLedger } from "../lib/ledger-io.ts";

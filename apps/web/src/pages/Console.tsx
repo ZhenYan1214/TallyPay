@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { formatUnits, isAddress, type Address } from "viem";
-import { NETWORKS, fromUnits, observeAccount, parseActivity, txUrl, addressUrl, type AccountActivity, type NetworkId } from "@tallypay/sdk";
+import { NETWORKS, fromUnits, observeAccount, parseActivity, txUrl, addressUrl, type AccountActivity, type NetworkId } from "@tieout/sdk";
 import {
   buildJournal,
   camt054Xml,
@@ -13,7 +13,7 @@ import {
   type JournalEntry,
   type ReconReport,
   type ReconStatus,
-} from "@tallypay/recon";
+} from "@tieout/recon";
 import { AnchorBadge, ExternalLink, Notice, Stat, StatusBadge, STATUS_HELP } from "../components/ui.tsx";
 import { hashFlags } from "../App.tsx";
 import { publicClientFor } from "../lib/chain.ts";
@@ -499,28 +499,28 @@ function Results({
           <ExportCard
             title="Reconciliation report"
             body="One row per payment and exception, with explorer links. For review and audit files."
-            onClick={() => download(`tallypay-reconciliation-${report.account.slice(2, 8)}.csv`, reconReportCsv(report, network.explorerUrl))}
+            onClick={() => download(`tieout-reconciliation-${report.account.slice(2, 8)}.csv`, reconReportCsv(report, network.explorerUrl))}
           />
           <ExportCard
             title="Journal (generic CSV)"
             body="Double-entry lines with account codes, 6-decimal amounts and transaction hashes."
-            onClick={() => download(`tallypay-journal-${report.account.slice(2, 8)}.csv`, journalCsv(journal))}
+            onClick={() => download(`tieout-journal-${report.account.slice(2, 8)}.csv`, journalCsv(journal))}
           />
           <ExportCard
             title="Xero manual journal import"
             body="Xero 'Import manual journals' layout. USDC lines only, rounded to cents. In Xero, set the USDC wallet up as a current asset, not a bank account."
-            onClick={() => download(`tallypay-xero-${report.account.slice(2, 8)}.csv`, xeroManualJournalCsv(journal))}
+            onClick={() => download(`tieout-xero-${report.account.slice(2, 8)}.csv`, xeroManualJournalCsv(journal))}
           />
           <ExportCard
             title="QuickBooks Online journal import"
             body="QBO 'Import journal entries' layout: account names, MM/dd/yyyy dates, balanced debits and credits, transaction hash in the description."
-            onClick={() => download(`tallypay-qbo-${report.account.slice(2, 8)}.csv`, qboJournalCsv(journal))}
+            onClick={() => download(`tieout-qbo-${report.account.slice(2, 8)}.csv`, qboJournalCsv(journal))}
           />
           <ExportCard
             title="ISO 20022 camt.054 (XML)"
             body="Bank-style debit/credit notification for the wallet, the same message family Circle Mint uses for statements. Carries EndToEndId, creditor reference, purpose code and the transaction hash per entry."
             label="Download XML"
-            onClick={() => download(`tallypay-camt054-${report.account.slice(2, 8)}.xml`, camt054Xml(report), "application/xml")}
+            onClick={() => download(`tieout-camt054-${report.account.slice(2, 8)}.xml`, camt054Xml(report), "application/xml")}
           />
         </section>
       )}

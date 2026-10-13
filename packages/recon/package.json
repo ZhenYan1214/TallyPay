@@ -1,5 +1,5 @@
 {
-  "name": "@tallypay/recon",
+  "name": "@tieout/recon",
   "version": "0.1.0",
   "description": "Reconciles Arc USDC activity against a payer's ledger and produces journal entries",
   "license": "Apache-2.0",
@@ -7,7 +7,7 @@
   "main": "src/index.ts",
   "types": "src/index.ts",
   "dependencies": {
-    "@tallypay/sdk": "0.1.0",
+    "@tieout/sdk": "0.1.0",
     "viem": "^2.21.0"
   }
 }

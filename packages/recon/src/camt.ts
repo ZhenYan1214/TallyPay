@@ -1,4 +1,4 @@
-import { fromUnits } from "@tallypay/sdk";
+import { fromUnits } from "@tieout/sdk";
 import type { ReconReport } from "./reconcile.js";
 
 /**
@@ -53,7 +53,7 @@ function amt(units: bigint): string {
 export function camt054Xml(report: ReconReport, options: CamtOptions = {}): string {
   const network = options.network ?? "ARC";
   const created = report.generatedAt.replace(/\.\d{3}Z$/, "Z");
-  const msgId = options.msgId ?? `TALLYPAY-${report.generatedAt.replace(/[-:.TZ]/g, "").slice(0, 14)}`;
+  const msgId = options.msgId ?? `TIEOUT-${report.generatedAt.replace(/[-:.TZ]/g, "").slice(0, 14)}`;
   const items = report.items.filter((i) => i.transfer);
 
   const entries = items
@@ -79,7 +79,7 @@ export function camt054Xml(report: ReconReport, options: CamtOptions = {}): stri
       const party = credit
         ? `<RltdPties><Dbtr><Pty><Id><OrgId><Othr><Id>${esc(counterparty)}</Id><SchmeNm><Prtry>${network}-ADDRESS</Prtry></SchmeNm></Othr></OrgId></Id></Pty></Dbtr></RltdPties>`
         : `<RltdPties><Cdtr><Pty>${item.instruction?.payeeName ? `<Nm>${esc(item.instruction.payeeName)}</Nm>` : ""}<Id><OrgId><Othr><Id>${esc(counterparty)}</Id><SchmeNm><Prtry>${network}-ADDRESS</Prtry></SchmeNm></Othr></OrgId></Id></Pty></Cdtr></RltdPties>`;
-      const info = [`tallypay:${item.status}`, ...item.notes].join(" | ").slice(0, 500);
+      const info = [`tieout:${item.status}`, ...item.notes].join(" | ").slice(0, 500);
       return (
         `<Ntry>` +
         `<NtryRef>${esc(t.txHash)}:${t.logIndex}</NtryRef>` +
@@ -89,7 +89,7 @@ export function camt054Xml(report: ReconReport, options: CamtOptions = {}): stri
         `<BookgDt><DtTm>${dateTime(t.timestamp)}</DtTm></BookgDt>` +
         `<ValDt><Dt>${date(t.timestamp)}</Dt></ValDt>` +
         `<AcctSvcrRef>${esc(t.txHash)}</AcctSvcrRef>` +
-        `<BkTxCd><Prtry><Cd>${t.token}-${network}${t.native ? "-NATIVE" : ""}</Cd><Issr>TALLYPAY</Issr></Prtry></BkTxCd>` +
+        `<BkTxCd><Prtry><Cd>${t.token}-${network}${t.native ? "-NATIVE" : ""}</Cd><Issr>TIEOUT</Issr></Prtry></BkTxCd>` +
         `<NtryDtls><TxDtls>` +
         `<Refs>${refs}</Refs>` +
         `<Amt Ccy="${ccy(t.token)}">${amt(t.amount)}</Amt>` +

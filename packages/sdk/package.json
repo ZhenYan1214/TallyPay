@@ -1,5 +1,5 @@
 {
-  "name": "@tallypay/sdk",
+  "name": "@tieout/sdk",
   "version": "0.1.0",
   "description": "Structured payment memos, batch payouts and log readers for Arc",
   "license": "Apache-2.0",

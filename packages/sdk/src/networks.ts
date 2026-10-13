@@ -5,7 +5,7 @@ import { defineChain, type Address } from "viem";
  * https://docs.arc.io/arc/references/contract-addresses
  *
  * USDC is Arc's native gas token. The native balance uses 18 decimals,
- * while the ERC-20 interface at 0x3600… uses 6 decimals. Tallypay always
+ * while the ERC-20 interface at 0x3600… uses 6 decimals. Tieout always
  * moves USDC through the ERC-20 interface and records amounts in 6 decimals.
  */
 export type NetworkId = "arc-mainnet" | "arc-testnet";

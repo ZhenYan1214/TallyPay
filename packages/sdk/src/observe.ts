@@ -94,7 +94,7 @@ function ranges(from: bigint, to: bigint): Array<[bigint, bigint]> {
 type RawLog = { address: Address; transactionHash: Hex | null; blockNumber: bigint | null; logIndex: number | null; args: unknown };
 
 /**
- * Reads everything Tallypay needs to reconcile one account over a block range:
+ * Reads everything Tieout needs to reconcile one account over a block range:
  * USDC/EURC transfers in both directions, the Memo events that wrap them,
  * run anchors, the network fees the account paid, and the balances at the
  * edges of the range.

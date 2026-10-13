@@ -9,7 +9,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { encodeFunctionData, type Hex } from "viem";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
-import { ARC_TESTNET, erc20Abi, fromUnits, toUnits, MIN_MAX_FEE_PER_GAS } from "@tallypay/sdk";
+import { ARC_TESTNET, erc20Abi, fromUnits, toUnits, MIN_MAX_FEE_PER_GAS } from "@tieout/sdk";
 import { clients } from "./env.js";
 
 const FILE = ".env.testwallet";

@@ -1,7 +1,7 @@
 import { hexToString, keccak256, stringToHex, type Hex } from "viem";
 
 /**
- * Tallypay memo format, version 1 ("tp1").
+ * Tieout memo format, version 1 ("tp1").
  *
  * Field names follow ISO 20022 credit transfer messages (pain.001 / pacs.008)
  * so that bank-side systems can map them without translation. This is a

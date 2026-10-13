@@ -1,5 +1,5 @@
 {
-  "name": "tallypay",
+  "name": "tieout",
   "private": true,
   "version": "0.1.0",
   "description": "Reconciliation and accounting layer for USDC flows on Arc",
