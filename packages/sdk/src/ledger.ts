@@ -10,7 +10,15 @@ export type TokenSymbol = "USDC" | "EURC";
  */
 export interface PayoutInstruction {
   EndToEndId: string;
+  /**
+   * "out" (default): money the account pays; `recipient` is the payee.
+   * "in": money the account expects to receive, e.g. an invoice it issued;
+   * `recipient` is the account itself and `payer` the expected sender.
+   */
+  direction?: "out" | "in";
   recipient: Address;
+  /** Expected sender of an incoming payment. Optional; when absent any sender matches. */
+  payer?: Address;
   /** Decimal string in token units, e.g. "12.50". */
   amount: string;
   token: TokenSymbol;
@@ -49,7 +57,14 @@ export function normalizeInstruction(input: PayoutInstruction): PayoutInstructio
   if (!isAddress(input.recipient)) throw new Error(`Invalid recipient for ${input.EndToEndId}: ${input.recipient}`);
   const units = toUnits(input.amount);
   if (units <= 0n) throw new Error(`Amount must be positive for ${input.EndToEndId}`);
-  return { ...input, recipient: getAddress(input.recipient), amount: fromUnits(units) };
+  if (input.payer !== undefined && !isAddress(input.payer)) throw new Error(`Invalid payer for ${input.EndToEndId}: ${input.payer}`);
+  return {
+    ...input,
+    direction: input.direction ?? "out",
+    recipient: getAddress(input.recipient),
+    payer: input.payer ? getAddress(input.payer) : undefined,
+    amount: fromUnits(units),
+  };
 }
 
 /**
@@ -59,7 +74,7 @@ export function normalizeInstruction(input: PayoutInstruction): PayoutInstructio
  */
 export function ledgerHash(instructions: PayoutInstruction[]): Hex {
   const lines = instructions
-    .map((i) => `${i.EndToEndId}|${i.recipient.toLowerCase()}|${toUnits(i.amount).toString()}|${i.token}`)
+    .map((i) => `${i.EndToEndId}|${i.recipient.toLowerCase()}|${toUnits(i.amount).toString()}|${i.token}`) // direction is not hashed: anchors cover payouts only
     .sort();
   return keccak256(stringToHex(lines.join("\n")));
 }

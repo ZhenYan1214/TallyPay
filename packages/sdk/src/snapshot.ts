@@ -20,6 +20,7 @@ function transferOut(t: TransferObservation) {
     ...t,
     blockNumber: t.blockNumber.toString(),
     amount: t.amount.toString(),
+    amountWei: t.amountWei?.toString(),
     memo: t.memo ? { ...t.memo, memoIndex: t.memo.memoIndex.toString() } : undefined,
   };
 }
@@ -32,6 +33,7 @@ function transferIn(t: Json<TransferObservation>): TransferObservation {
     to: t.to as Address,
     blockNumber: BigInt(t.blockNumber),
     amount: BigInt(t.amount),
+    amountWei: t.amountWei !== undefined ? BigInt(t.amountWei) : undefined,
     memo: t.memo ? { ...t.memo, memoId: t.memo.memoId as Hex, memoIndex: BigInt(t.memo.memoIndex) } : undefined,
   };
 }
@@ -47,6 +49,7 @@ export function serializeActivity(activity: AccountActivity, takenAt = new Date(
       transfers: activity.transfers.map(transferOut),
       anchors: activity.anchors.map((a) => ({ ...a, blockNumber: a.blockNumber.toString() })),
       fees: activity.fees.map((f) => ({ ...f, blockNumber: f.blockNumber.toString(), feeWei: f.feeWei.toString() })),
+      balances: activity.balances?.map((b) => ({ ...b, opening: b.opening.toString(), closing: b.closing.toString() })),
     },
   };
   return JSON.stringify(out, null, 2) + "\n";
@@ -64,6 +67,7 @@ export function parseActivity(json: string): ActivitySnapshot {
     transfers: a.transfers.map(transferIn),
     anchors: a.anchors.map((x) => ({ ...x, txHash: x.txHash as Hex, sender: x.sender as Address, blockNumber: BigInt(x.blockNumber) }) as AnchorObservation),
     fees: a.fees.map((x) => ({ ...x, txHash: x.txHash as Hex, from: x.from as Address, blockNumber: BigInt(x.blockNumber), feeWei: BigInt(x.feeWei) }) as FeeObservation),
+    balances: a.balances?.map((b) => ({ token: b.token, opening: BigInt(b.opening), closing: BigInt(b.closing) })),
   };
   return { version: 1, takenAt: raw.takenAt, activity };
 }

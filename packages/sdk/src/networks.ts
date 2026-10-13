@@ -66,6 +66,16 @@ export const MIN_MAX_FEE_PER_GAS = 20_000_000_000n;
 /** Public RPCs reject eth_getLogs ranges above roughly 10,000 blocks. */
 export const MAX_LOG_RANGE = 9_000n;
 
+/**
+ * EIP-7708: Arc emits an ERC-20-style Transfer log from this system address
+ * for every native USDC value movement, in 18 decimals. ERC-20 transfers of
+ * USDC emit it too, alongside the 6-decimal log from the token contract.
+ */
+export const SYSTEM_TRANSFER_EMITTER: Address = "0xffffFFFfFFffffffffffffffFfFFFfffFFFfFFfE";
+
+/** Native USDC has 18 decimals; the ERC-20 interface has 6. */
+export const NATIVE_TO_UNITS = 1_000_000_000_000n;
+
 export function toViemChain(network: ArcNetwork, rpcUrl = network.rpcUrl) {
   return defineChain({
     id: network.chainId,
