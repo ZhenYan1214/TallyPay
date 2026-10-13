@@ -16,7 +16,7 @@ import {
   type PayoutInstruction,
   type PayoutRunPlan,
 } from "@tieout/sdk";
-import { ExternalLink, Notice } from "../components/ui.tsx";
+import { ExternalLink, Notice, PageHeader } from "../components/ui.tsx";
 import { ensureNetwork, injectedProvider, publicClientFor } from "../lib/chain.ts";
 import { download, instructionsToCsv, readLedgerFile, shortHash, type LoadedLedger } from "../lib/ledger-io.ts";
 
@@ -205,25 +205,26 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">{tab === "send" ? "Pay a run with memos" : "Request a payment"}</h1>
-          <p className="mt-1 text-sm text-slate-600">
-            {tab === "send" ? (
-              <>One transaction from your own wallet: a run anchor plus one memo-tagged USDC transfer per payee, batched with Arc's native <code className="font-mono text-xs">Multicall3From</code>. Tieout never holds keys or funds.</>
-            ) : (
-              <>Build a link that prefills the payer's side with your invoice id. When they pay through it, the memo carries your reference and the receipt reconciles itself.</>
-            )}
-          </p>
-        </div>
-        <div className="flex gap-1 rounded-lg bg-slate-100 p-1 text-sm">
-          {(["send", "request"] as Tab[]).map((t) => (
-            <button key={t} onClick={() => setTab(t)} className={`rounded-md px-3 py-1 font-medium ${tab === t ? "bg-white shadow-sm" : "text-slate-600"}`}>
-              {t === "send" ? "Send a run" : "Request a payment"}
-            </button>
-          ))}
-        </div>
-      </div>
+      <PageHeader
+        eyebrow={tab === "send" ? "Pay" : "Request"}
+        title={tab === "send" ? "Pay a run with memos" : "Request a payment"}
+        lead={
+          tab === "send" ? (
+            <>One transaction from your own wallet: a run anchor plus one memo-tagged USDC transfer per payee, batched with Arc's native <code className="font-mono text-xs">Multicall3From</code>. Tieout never holds keys or funds.</>
+          ) : (
+            <>Build a link that prefills the payer's side with your invoice id. When they pay through it, the memo carries your reference and the receipt reconciles itself.</>
+          )
+        }
+        aside={
+          <div className="flex gap-0.5 rounded-xl bg-slate-100/80 p-1 text-sm">
+            {(["send", "request"] as Tab[]).map((t) => (
+              <button key={t} onClick={() => setTab(t)} className={`rounded-lg px-3 py-1.5 font-medium transition ${tab === t ? "bg-white text-slate-900 shadow-sm" : "text-slate-600 hover:text-slate-900"}`}>
+                {t === "send" ? "Send a run" : "Request a payment"}
+              </button>
+            ))}
+          </div>
+        }
+      />
 
       {tab === "request" && <RequestForm networkId={networkId} setNetworkId={setNetworkId} />}
 
@@ -308,7 +309,7 @@ export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedge
           {instructions.length > 0 && (
             <section className="card overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+                <thead className="table-head">
                   <tr>
                     <th className="px-4 py-3">EndToEndId</th>
                     <th className="px-4 py-3">Payee (off-chain)</th>

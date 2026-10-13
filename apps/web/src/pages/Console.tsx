@@ -30,15 +30,24 @@ import {
   type ReconReport,
   type ReconStatus,
 } from "@tieout/recon";
-import { AnchorBadge, ExternalLink, Notice, Stat, StatusBadge, STATUS_HELP } from "../components/ui.tsx";
+import { AnchorBadge, Collapsible, EmptyState, ExternalLink, Field, Mono, Notice, PageHeader, ProgressBar, Stat, StatusBadge, STATUS_HELP, fmt } from "../components/ui.tsx";
 import { hashFlags } from "../App.tsx";
 import { ensureNetwork, injectedProvider, publicClientFor, rpcOverride, setRpcOverride } from "../lib/chain.ts";
-import { download, readLedgerFile, shortHash, type LoadedLedger } from "../lib/ledger-io.ts";
+import { download, readLedgerFile, type LoadedLedger } from "../lib/ledger-io.ts";
 
 /** Demo ledgers shipped with the app. Mainnet first: that is the one reviewers should see. */
 export const DEMOS: Array<{ id: NetworkId; file: string; snapshot: string }> = [
   { id: "arc-mainnet", file: "./demo/promptbazaar-arc-mainnet.json", snapshot: "./demo/promptbazaar-arc-mainnet.activity.json" },
   { id: "arc-testnet", file: "./demo/promptbazaar-arc-testnet.json", snapshot: "./demo/promptbazaar-arc-testnet.activity.json" },
+];
+
+/** Arc produces about two blocks a second. */
+const BLOCKS_PER_HOUR = 7_200n;
+const MAX_RANGE = 200_000n;
+const PRESETS: Array<{ label: string; hours: bigint }> = [
+  { label: "Last hour", hours: 1n },
+  { label: "Last 6 hours", hours: 6n },
+  { label: "Last 24 hours", hours: 24n },
 ];
 
 type Source = { kind: "live" } | { kind: "snapshot"; takenAt: string; reason: string };
@@ -73,6 +82,14 @@ function parseAddresses(text: string): Address[] {
     .filter((a): a is Address => isAddress(a));
 }
 
+function friendly(e: unknown): string {
+  const err = e as { shortMessage?: string; message?: string };
+  const text = (err.shortMessage ?? err.message ?? String(e)).split(/\r?\n/)[0]!;
+  if (/429|rate limit/i.test(text)) return "The public RPC is rate-limiting. Try again in a moment, or paste your own RPC URL under Advanced.";
+  if (/Failed to fetch|NetworkError|HTTP request failed/i.test(text)) return "Could not reach the RPC. Check your connection, or paste your own RPC URL under Advanced.";
+  return text;
+}
+
 /** Pure recomputation from a scan already in memory: no RPC, so decisions apply instantly. */
 function compute(activity: AccountActivity, ledgers: LoadedLedger[], signers: Address[], decisions: Decision[]): { report: ReconReport; journal: JournalEntry[] } {
   const report = reconcile(
@@ -101,7 +118,7 @@ export default function Console({
   const [rpc, setRpc] = useState(() => rpcOverride("arc-mainnet"));
   const [availableDemos, setAvailableDemos] = useState<NetworkId[] | null>(null);
   const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<string>("");
+  const [progress, setProgress] = useState<{ pct: number | null; stage: string }>({ pct: null, stage: "" });
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Result | null>(null);
   const [tab, setTab] = useState<Tab>("items");
@@ -164,7 +181,7 @@ export default function Console({
       applyLedgers([l], "replace");
       return l;
     } catch (e) {
-      setError(`Could not load demo: ${(e as Error).message}`);
+      setError(`Could not load demo: ${friendly(e)}`);
       return null;
     }
   }
@@ -172,12 +189,14 @@ export default function Console({
   async function onFile(file: File) {
     try {
       const parsed = await readLedgerFile(file);
+      const payer = (parsed.payer ?? account) as Address;
       const l: LoadedLedger = {
         PmtInfId: parsed.PmtInfId ?? file.name.replace(/\.[^.]+$/, ""),
         network: parsed.network ?? networkId,
-        payer: (parsed.payer ?? account) as Address,
+        payer,
         createdAt: parsed.createdAt ?? new Date().toISOString(),
-        instructions: parsed.instructions,
+        // A receivable row may omit its recipient: it is this wallet.
+        instructions: parsed.instructions.map((i) => (i.direction === "in" && !i.recipient && isAddress(payer) ? { ...i, recipient: payer } : i)),
         execution: parsed.execution,
         scan: parsed.scan,
         description: parsed.description,
@@ -189,8 +208,26 @@ export default function Console({
       }
       applyLedgers([l], ledgers.length ? "append" : "replace");
     } catch (e) {
-      setError(`Could not read ledger: ${(e as Error).message}`);
+      setError(`Could not read ledger: ${friendly(e)}`);
     }
+  }
+
+  async function applyPreset(hours: bigint) {
+    try {
+      const latest = await publicClientFor(networkId).getBlockNumber();
+      const span = hours * BLOCKS_PER_HOUR;
+      setFromBlock((latest > span ? latest - span : 0n).toString());
+      setToBlock("");
+      setFromDate("");
+      setToDate("");
+      setError(null);
+    } catch (e) {
+      setError(friendly(e));
+    }
+  }
+
+  function useLedgerRange() {
+    applyLedgers(ledgers, "replace");
   }
 
   /** Scan the chain (or fall back to the demo snapshot), then reconcile. Pass no ledgers for a plain statement of the wallet. */
@@ -204,7 +241,7 @@ export default function Console({
     if (!isAddress(acct)) return setError(ls.length ? "The ledger has no wallet address." : "Enter the wallet address, or load a ledger.");
     const signers = [...parseAddresses(memoSigners), ...extraSigners];
     setRunning(true);
-    setProgress("");
+    setProgress({ pct: null, stage: "connecting to Arc" });
     try {
       let activity: AccountActivity;
       let source: Source = { kind: "live" };
@@ -216,14 +253,15 @@ export default function Console({
         const scanFrom = override ? first?.scan?.fromBlock : fromBlock;
         const scanTo = override ? first?.scan?.toBlock : toBlock;
         if (!override && fromDate && toDate && !scanFrom && !scanTo) {
-          setProgress("finding blocks for dates…");
+          setProgress({ pct: null, stage: "finding blocks for those dates" });
           ({ fromBlock: from, toBlock: to } = await blockRangeForDates(client, fromDate, toDate));
         } else {
           to = scanTo ? BigInt(scanTo) : latest;
-          from = scanFrom ? BigInt(scanFrom) : to > 9_000n ? to - 9_000n : 0n;
+          from = scanFrom ? BigInt(scanFrom) : to > BLOCKS_PER_HOUR * 24n ? to - BLOCKS_PER_HOUR * 24n : 0n;
         }
         if (from > to) throw new Error("From block must not be after to block");
-        if (to - from > 200_000n) throw new Error("Range too large for a browser scan (max 200,000 blocks ≈ 28 hours on mainnet)");
+        if (to - from > MAX_RANGE) throw new Error(`Range too large for a browser scan (max ${MAX_RANGE.toLocaleString("en-US")} blocks, about 28 hours). Narrow it, or use an indexer.`);
+        setProgress({ pct: 0, stage: "reading transfers and memos" });
         activity = await observeAccount({
           client,
           network: NETWORKS[net],
@@ -231,7 +269,7 @@ export default function Console({
           fromBlock: from,
           toBlock: to,
           memoSenders: signers,
-          onProgress: (done, total) => setProgress(`${Number((done * 100n) / (total || 1n))}%`),
+          onProgress: (done, total) => setProgress({ pct: Number((done * 100n) / (total || 1n)), stage: "reading transfers and memos" }),
         });
       } catch (liveError) {
         // Demos ship a frozen scan so the page still works when the public RPC is down.
@@ -240,15 +278,15 @@ export default function Console({
         if (!res.ok) throw liveError;
         const snap = parseActivity(await res.text());
         activity = snap.activity;
-        const err = liveError as { shortMessage?: string; message: string };
-        source = { kind: "snapshot", takenAt: snap.takenAt, reason: (err.shortMessage ?? err.message).split(/\r?\n/)[0]! };
+        source = { kind: "snapshot", takenAt: snap.takenAt, reason: friendly(liveError) };
       }
+      setProgress({ pct: 100, stage: "reconciling" });
       const { report, journal } = compute(activity, ls, signers, []);
       setResult({ report, activity, journal, networkId: net, source, ledgers: ls, signers, decisions: [] });
       setTab("items");
       setFilter("all");
     } catch (e) {
-      setError((e as Error).message);
+      setError(friendly(e));
     } finally {
       setRunning(false);
     }
@@ -271,106 +309,108 @@ export default function Console({
 
   const totalEntries = ledgers.reduce((s, l) => s + l.instructions.length, 0);
   const statementMode = ledgers.length === 0;
+  const rangeSummary = fromDate && toDate ? `${fromDate} → ${toDate}` : fromBlock || toBlock ? `blocks ${fromBlock || "…"} → ${toBlock || "latest"}` : "last 24 hours";
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Reconcile a wallet against your ledger</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          Everything runs in your browser against a public Arc RPC. Your ledger never leaves this page. No ledger? Enter a wallet and get a statement with a balance roll-forward instead.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Reconcile"
+        title="Reconcile a wallet against your ledger"
+        lead="Everything runs in your browser against a public Arc RPC. Your ledger never leaves this page. No ledger? Enter a wallet and get a statement with a balance roll-forward instead."
+      />
 
-      <section className="card grid gap-4 p-5 md:grid-cols-12">
-        <div className="md:col-span-12 flex flex-wrap items-center gap-2">
-          {availableDemos === null && <span className="text-sm text-slate-500">Checking for demo ledgers…</span>}
-          {availableDemos?.map((id) => (
-            <button key={id} className={id === "arc-mainnet" ? "btn-primary" : "btn-secondary"} onClick={() => loadDemo(id).then((l) => l && run([l]))}>
-              Run PromptBazaar demo · {NETWORKS[id].name}
-            </button>
-          ))}
-          <label className="btn-secondary cursor-pointer">
-            {ledgers.length ? "Add another ledger (CSV or JSON)" : "Upload ledger (CSV or JSON)"}
-            <input type="file" accept=".csv,.json" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
-          </label>
+      <section className="card divide-y divide-slate-100">
+        <div className="space-y-3 p-5">
+          <div className="flex flex-wrap items-center gap-2">
+            {availableDemos === null && <span className="text-sm text-slate-500">Checking for demo ledgers…</span>}
+            {availableDemos?.map((id) => (
+              <button key={id} className={id === "arc-mainnet" ? "btn-primary" : "btn-secondary"} disabled={running} onClick={() => loadDemo(id).then((l) => l && run([l]))}>
+                Run PromptBazaar demo · {NETWORKS[id].name}
+              </button>
+            ))}
+            <label className="btn-secondary cursor-pointer">
+              {ledgers.length ? "Add another ledger" : "Upload ledger (CSV or JSON)"}
+              <input type="file" accept=".csv,.json" className="hidden" onChange={(e) => e.target.files?.[0] && onFile(e.target.files[0])} />
+            </label>
+            {ledgers.length > 0 && <button className="btn-ghost" onClick={() => { setLedgers([]); setResult(null); }}>Clear</button>}
+          </div>
           {ledgers.length > 0 && (
-            <button className="text-sm text-slate-500 underline" onClick={() => { setLedgers([]); setResult(null); }}>Clear</button>
+            <div className="flex flex-wrap items-center gap-2 text-sm">
+              {ledgers.map((l) => (
+                <span key={l.PmtInfId} className="chip max-w-full flex-wrap gap-x-2 py-1.5">
+                  <span className="font-semibold whitespace-nowrap text-slate-900">{l.PmtInfId}</span>
+                  <span className="whitespace-nowrap text-slate-500">{l.instructions.length} entries</span>
+                  {l.description ? <span className="text-slate-500">· {l.description}</span> : null}
+                </span>
+              ))}
+              {ledgers.length > 1 && <span className="text-xs text-slate-500">{totalEntries} entries across {ledgers.length} ledgers</span>}
+            </div>
           )}
         </div>
-        {ledgers.length > 0 && (
-          <div className="md:col-span-12 flex flex-wrap gap-2 text-sm">
-            {ledgers.map((l) => (
-              <span key={l.PmtInfId} className="inline-flex max-w-full flex-wrap items-center gap-x-2 rounded-2xl bg-slate-100 px-3 py-1 text-slate-700">
-                <span className="font-medium whitespace-nowrap text-slate-900">{l.PmtInfId}</span>
-                <span className="whitespace-nowrap">· {l.instructions.length} entries</span>
-                {l.description ? <span className="text-slate-500">· {l.description}</span> : null}
-              </span>
-            ))}
-            {ledgers.length > 1 && <span className="self-center text-slate-500">{totalEntries} entries across {ledgers.length} ledgers</span>}
+
+        <div className="grid gap-4 p-5 md:grid-cols-12">
+          <Field label="Network" className="md:col-span-3">
+            <select className="input" value={networkId} onChange={(e) => setNetworkId(e.target.value as NetworkId)}>
+              {Object.values(NETWORKS).map((n) => (
+                <option key={n.id} value={n.id}>{n.name}</option>
+              ))}
+            </select>
+          </Field>
+          <Field label="Wallet" className="md:col-span-9">
+            <input className="input font-mono" placeholder="0x… the paying or receiving wallet" value={account} onChange={(e) => setAccount(e.target.value.trim())} spellCheck={false} />
+          </Field>
+          <div className="md:col-span-12">
+            <Collapsible title="Scan range and advanced options" summary={<span>{rangeSummary}</span>}>
+              <div className="grid gap-4 md:grid-cols-12">
+                <div className="md:col-span-12 flex flex-wrap items-center gap-2">
+                  {PRESETS.map((p) => (
+                    <button key={p.label} type="button" className="chip hover:border-slate-300 hover:bg-slate-50" onClick={() => applyPreset(p.hours)}>{p.label}</button>
+                  ))}
+                  {ledgers.some((l) => l.scan || l.execution) && (
+                    <button type="button" className="chip hover:border-slate-300 hover:bg-slate-50" onClick={useLedgerRange}>Ledger's own range</button>
+                  )}
+                  <span className="text-xs text-slate-500">Arc produces about two blocks a second; a browser scan covers at most {MAX_RANGE.toLocaleString("en-US")} blocks.</span>
+                </div>
+                <Field label="From block" className="md:col-span-3">
+                  <input className="input font-mono" placeholder="latest − 172,800" value={fromBlock} onChange={(e) => setFromBlock(e.target.value.trim())} />
+                </Field>
+                <Field label="To block" className="md:col-span-3">
+                  <input className="input font-mono" placeholder="latest" value={toBlock} onChange={(e) => setToBlock(e.target.value.trim())} />
+                </Field>
+                <Field label="Or from date (UTC)" className="md:col-span-3">
+                  <input className="input" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setFromBlock(""); setToBlock(""); }} />
+                </Field>
+                <Field label="To date (UTC)" className="md:col-span-3">
+                  <input className="input" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setFromBlock(""); setToBlock(""); }} />
+                </Field>
+                <Field label="Reference signers" hint="EOAs that publish on-chain references for this wallet's payments, for example your operations wallet attesting a Safe's payouts." className="md:col-span-6">
+                  <input className="input font-mono" placeholder="0x…, 0x…" value={memoSigners} onChange={(e) => setMemoSigners(e.target.value)} spellCheck={false} />
+                </Field>
+                <Field label="RPC URL" hint="Your own node or a provider key avoids public rate limits and keeps the address you query off a shared endpoint. Stays in this browser." className="md:col-span-6">
+                  <input className="input font-mono" placeholder={`${NETWORKS[networkId].rpcUrl} (public default)`} value={rpc} onChange={(e) => setRpc(e.target.value)} onBlur={() => setRpcOverride(networkId, rpc)} spellCheck={false} />
+                </Field>
+              </div>
+            </Collapsible>
           </div>
-        )}
-        <div className="md:col-span-3">
-          <span className="label">Network</span>
-          <select className="input" value={networkId} onChange={(e) => setNetworkId(e.target.value as NetworkId)}>
-            {Object.values(NETWORKS).map((n) => (
-              <option key={n.id} value={n.id}>{n.name}</option>
-            ))}
-          </select>
-        </div>
-        <div className="md:col-span-5">
-          <span className="label">Wallet</span>
-          <input className="input font-mono" placeholder="0x…" value={account} onChange={(e) => setAccount(e.target.value.trim())} />
-        </div>
-        <div className="md:col-span-2">
-          <span className="label">From block</span>
-          <input className="input font-mono" placeholder="latest − 9000" value={fromBlock} onChange={(e) => setFromBlock(e.target.value.trim())} />
-        </div>
-        <div className="md:col-span-2">
-          <span className="label">To block</span>
-          <input className="input font-mono" placeholder="latest" value={toBlock} onChange={(e) => setToBlock(e.target.value.trim())} />
-        </div>
-        <div className="md:col-span-3">
-          <span className="label">Or from date (UTC)</span>
-          <input className="input font-mono" type="date" value={fromDate} onChange={(e) => { setFromDate(e.target.value); setFromBlock(""); setToBlock(""); }} />
-        </div>
-        <div className="md:col-span-3">
-          <span className="label">To date (UTC)</span>
-          <input className="input font-mono" type="date" value={toDate} onChange={(e) => { setToDate(e.target.value); setFromBlock(""); setToBlock(""); }} />
-        </div>
-        <div className="md:col-span-6">
-          <span className="label">Reference signers (optional)</span>
-          <input
-            className="input font-mono"
-            placeholder="0x… EOAs that publish references for this wallet's payments, e.g. your ops wallet"
-            value={memoSigners}
-            onChange={(e) => setMemoSigners(e.target.value)}
-          />
-        </div>
-        <div className="md:col-span-8">
-          <span className="label">RPC URL (optional, stays in this browser)</span>
-          <input
-            className="input font-mono"
-            placeholder={`${NETWORKS[networkId].rpcUrl} (public default)`}
-            value={rpc}
-            onChange={(e) => setRpc(e.target.value)}
-            onBlur={() => setRpcOverride(networkId, rpc)}
-          />
-        </div>
-        <div className="md:col-span-4 flex items-end">
-          <span className="text-xs text-slate-500">Your own node or a provider key avoids public rate limits and keeps the wallet address you query off a shared endpoint.</span>
-        </div>
-        <div className="md:col-span-12 flex items-center gap-4">
-          <button className="btn-primary" disabled={running || (!ledgers.length && !isAddress(account))} onClick={() => run()}>
-            {running ? `Scanning Arc… ${progress}` : statementMode ? "Statement for this wallet" : "Reconcile"}
-          </button>
-          <span className="text-xs text-slate-500">
-            Dates are turned into block numbers by binary search; leave both empty to scan the ledger's own range or the last 9,000 blocks.
-          </span>
+          <div className="md:col-span-12 flex flex-wrap items-center gap-4">
+            <button className="btn-primary" disabled={running || (!ledgers.length && !isAddress(account))} onClick={() => run()}>
+              {running ? "Scanning Arc…" : statementMode ? "Statement for this wallet" : "Reconcile"}
+            </button>
+            {running && <ProgressBar value={progress.pct} label={progress.stage} />}
+            {!running && statementMode && isAddress(account) && <span className="text-xs text-slate-500">No ledger loaded: you will get every movement, the roll-forward and the exports.</span>}
+          </div>
         </div>
       </section>
 
       {error && <Notice tone="error">{error}</Notice>}
       {ledgers[0]?.scenario && <ScenarioGuide ledger={ledgers[0]} />}
+      {!result && !running && !error && (
+        <EmptyState title="Nothing reconciled yet" body="Run the demo, upload a ledger, or paste a wallet address and ask for a statement.">
+          {availableDemos?.[0] && (
+            <button className="btn-secondary" onClick={() => loadDemo(availableDemos[0]!).then((l) => l && run([l]))}>Run the PromptBazaar demo</button>
+          )}
+        </EmptyState>
+      )}
       {result && (
         <Results
           result={result}
@@ -395,7 +435,6 @@ export default function Console({
 function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
   const network = NETWORKS[ledger.network];
   const s = ledger.scenario ?? {};
-  const tx = (hash?: string) => (hash ? <ExternalLink href={txUrl(network, hash)} className="font-mono text-xs">{shortHash(hash)}</ExternalLink> : null);
   const rows: Array<{ what: string; expect: ReconStatus; link?: string; id?: string }> = [
     { what: "Sellers paid in one batch, each with an ISO 20022 memo and a run anchor", expect: "matched", link: s.batchTx },
     { what: "One seller paid by a plain transfer with no memo, as a Safe or MPC wallet would", expect: "matched_by_intent", link: s.manualNoMemoTx },
@@ -415,15 +454,15 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
         <h2 className="font-semibold">What this demo shows</h2>
         <span className="text-xs text-slate-500">
           PromptBazaar is a fictional marketplace. Every transaction below is a real {network.name} transaction from{" "}
-          <ExternalLink href={addressUrl(network, ledger.payer)} className="font-mono">{shortHash(ledger.payer)}</ExternalLink>.
+          <Mono value={ledger.payer} href={addressUrl(network, ledger.payer)} />.
         </span>
       </div>
       <ul className="mt-3 divide-y divide-slate-100 text-sm">
         {rows.map((r) => (
-          <li key={r.what} className="flex flex-wrap items-center justify-between gap-2 py-2">
-            <span className="text-slate-700">{r.what}{r.id ? <span className="ml-1 font-mono text-xs text-slate-500">{r.id}</span> : null}</span>
+          <li key={r.what} className="flex flex-wrap items-center justify-between gap-2 py-2.5">
+            <span className="text-slate-700">{r.what}{r.id ? <span className="ml-1.5 font-mono text-xs text-slate-500">{r.id}</span> : null}</span>
             <span className="flex items-center gap-3">
-              {tx(r.link)}
+              {r.link && <Mono value={r.link} href={txUrl(network, r.link)} />}
               <StatusBadge status={r.expect} />
             </span>
           </li>
@@ -447,6 +486,7 @@ function auditBundle(result: Result): string {
       anchors: report.anchors,
       rollForward: report.rollForward,
       ignoredIncoming: report.ignoredIncoming,
+      danglingReferences: report.danglingReferences,
       items: report.items.map((i) => ({
         status: i.status,
         direction: i.direction,
@@ -496,6 +536,7 @@ function Results({
     [report, filter],
   );
   const intentItems = report.items.filter((i) => i.status === "matched_by_intent" && i.transfer && i.instruction);
+  const rows = report.rollForward?.filter((b) => b.opening !== 0n || b.closing !== 0n || b.inflow !== 0n || b.outflow !== 0n) ?? [];
 
   return (
     <div className="space-y-6">
@@ -511,61 +552,63 @@ function Results({
           roll-forward, or export a camt.054 for a treasury system. Load a ledger to reconcile.
         </Notice>
       )}
+
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
-        <Stat label="Expected" value={`${fromUnits(s.expectedUnits)}`} hint={`${report.items.filter((i) => i.instruction).length} ledger entries · USDC`} />
+        <Stat label="Expected" value={fmt(fromUnits(s.expectedUnits))} hint={`${report.items.filter((i) => i.instruction).length} ledger entries · USDC`} />
         <Stat
           label="Settled"
           tone="good"
-          value={`${fromUnits(s.settledUnits)}`}
+          value={fmt(fromUnits(s.settledUnits))}
           hint={`${s.byEvidence.memo} by memo · ${s.byEvidence.reference} by reference · ${s.byEvidence.manual} by hand · ${s.byEvidence.intent} by intent`}
         />
-        <Stat label="Exceptions" tone={exceptions ? "bad" : "good"} value={exceptions} hint={`${fromUnits(s.exceptionUnits)} USDC needs review`} />
-        <Stat label="Network fees" value={formatUnits(report.feesWei, 18).slice(0, 10)} hint={`USDC across ${activity.fees.length} transaction${activity.fees.length === 1 ? "" : "s"}`} />
+        <Stat label="Exceptions" tone={exceptions ? "bad" : "good"} value={exceptions} hint={`${fmt(fromUnits(s.exceptionUnits))} USDC needs review`} />
+        <Stat label="Network fees" value={fmt(formatUnits(report.feesWei, 18), 6)} hint={`USDC across ${activity.fees.length} transaction${activity.fees.length === 1 ? "" : "s"}`} />
         <div className="card p-4">
-          <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Run anchor{report.anchors.length === 1 ? "" : "s"}</div>
-          <div className="mt-2 space-y-1">
+          <div className="text-[11px] font-semibold tracking-[0.12em] text-slate-500 uppercase">Run anchor{report.anchors.length === 1 ? "" : "s"}</div>
+          <div className="mt-2 space-y-1.5">
             {report.anchors.length === 0 && <span className="text-xs text-slate-500">No ledger runs</span>}
             {report.anchors.map((a) => (
               <div key={a.PmtInfId} className="space-y-1">
                 <AnchorBadge status={a.status} />
-                {a.observed && (
-                  <div className="text-xs text-slate-500">
-                    <ExternalLink href={txUrl(network, a.observed.txHash)}>{shortHash(a.observed.txHash)}</ExternalLink>
-                  </div>
-                )}
-                {a.notes.map((n) => <div key={n} className="text-xs text-rose-700">{n}</div>)}
+                {a.observed && <div><Mono value={a.observed.txHash} href={txUrl(network, a.observed.txHash)} /></div>}
+                {a.notes.map((n) => <div key={n} className="text-xs leading-relaxed text-rose-700">{n}</div>)}
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {report.rollForward && (
-        <section className="card p-4">
+      {rows.length > 0 && (
+        <section className="card p-5">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
-            <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Balance roll-forward</div>
-            <div className="text-xs text-slate-500">Opening + receipts - payments - fees should equal closing. Anything else is money the scan did not explain.</div>
+            <h2 className="font-semibold">Balance roll-forward</h2>
+            <span className="text-xs text-slate-500">Opening + receipts − payments − fees should equal closing. Anything else is money the scan did not explain.</span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="mt-2 w-full text-sm">
-              <thead className="text-xs text-slate-500 uppercase">
-                <tr><th className="py-1 text-left">Token</th><th className="py-1 text-right">Opening</th><th className="py-1 text-right">Receipts</th><th className="py-1 text-right">Payments</th><th className="py-1 text-right">Fees</th><th className="py-1 text-right">Expected closing</th><th className="py-1 text-right">On-chain closing</th><th className="py-1 text-right">Unexplained</th></tr>
+          <div className="mt-3 overflow-x-auto">
+            <table className="nums w-full text-sm">
+              <thead className="table-head">
+                <tr>
+                  <th className="py-2 pr-3 text-left">Token</th><th className="py-2 px-3 text-right">Opening</th><th className="py-2 px-3 text-right">Receipts</th><th className="py-2 px-3 text-right">Payments</th><th className="py-2 px-3 text-right">Fees</th><th className="py-2 px-3 text-right">Expected closing</th><th className="py-2 px-3 text-right">On-chain closing</th><th className="py-2 pl-3 text-right">Unexplained</th>
+                </tr>
               </thead>
-              <tbody>
-                {report.rollForward.filter((b) => b.opening !== 0n || b.closing !== 0n || b.inflow !== 0n || b.outflow !== 0n).map((b) => (
-                  <tr key={b.token} className="tabular-nums">
-                    <td className="py-1">{b.token}</td>
-                    <td className="py-1 text-right">{fromUnits(b.opening)}</td>
-                    <td className="py-1 text-right">{fromUnits(b.inflow)}</td>
-                    <td className="py-1 text-right">{fromUnits(b.outflow)}</td>
-                    <td className="py-1 text-right">{fromUnits(b.fees)}</td>
-                    <td className="py-1 text-right">{fromUnits(b.expectedClosing)}</td>
-                    <td className="py-1 text-right">{fromUnits(b.closing)}</td>
-                    <td className={`py-1 text-right font-medium ${(b.unexplainedWei ?? b.unexplained) === 0n ? "text-emerald-700" : "text-rose-700"}`}>
-                      {(b.unexplainedWei ?? b.unexplained) === 0n ? "0, fully explained" : b.unexplainedWei !== undefined ? formatUnits(b.unexplainedWei, 18) : fromUnits(b.unexplained)}
-                    </td>
-                  </tr>
-                ))}
+              <tbody className="divide-y divide-slate-100">
+                {rows.map((b) => {
+                  const ok = (b.unexplainedWei ?? b.unexplained) === 0n;
+                  return (
+                    <tr key={b.token}>
+                      <td className="py-2.5 pr-3 font-medium">{b.token}</td>
+                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.opening))}</td>
+                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.inflow))}</td>
+                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.outflow))}</td>
+                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.fees))}</td>
+                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.expectedClosing))}</td>
+                      <td className="py-2.5 px-3 text-right">{fmt(fromUnits(b.closing))}</td>
+                      <td className={`py-2.5 pl-3 text-right font-semibold ${ok ? "text-emerald-700" : "text-rose-700"}`}>
+                        {ok ? "0 · fully explained" : b.unexplainedWei !== undefined ? fmt(formatUnits(b.unexplainedWei, 18), 18) : fmt(fromUnits(b.unexplained))}
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -574,7 +617,7 @@ function Results({
 
       {report.ignoredIncoming.count > 0 && (
         <Notice>
-          {report.ignoredIncoming.count} incoming transfer{report.ignoredIncoming.count === 1 ? "" : "s"} ({fromUnits(report.ignoredIncoming.units)} USDC) left out because this ledger has no receivables.
+          {report.ignoredIncoming.count} incoming transfer{report.ignoredIncoming.count === 1 ? "" : "s"} ({fmt(fromUnits(report.ignoredIncoming.units))} USDC) left out because this ledger has no receivables.
           Add entries with <code className="font-mono text-xs">direction: "in"</code> to reconcile money coming in as well.
         </Notice>
       )}
@@ -597,8 +640,8 @@ function Results({
       {intentItems.length > 0 && <AttachReferences items={intentItems} networkId={result.networkId} onPublished={onReferencesPublished} />}
 
       <div className="text-xs text-slate-500">
-        {source.kind === "live" ? "Scanned" : "Snapshot of"} blocks {activity.fromBlock.toString()}–{activity.toBlock.toString()} on {network.name} for{" "}
-        <ExternalLink href={addressUrl(network, activity.account)} className="font-mono">{shortHash(activity.account)}</ExternalLink> ·{" "}
+        {source.kind === "live" ? "Scanned" : "Snapshot of"} blocks <span className="nums">{activity.fromBlock.toString()}–{activity.toBlock.toString()}</span> on {network.name} for{" "}
+        <Mono value={activity.account} href={addressUrl(network, activity.account)} /> ·{" "}
         {activity.transfers.length} transfers · {activity.anchors.length} anchor{activity.anchors.length === 1 ? "" : "s"} · {activity.references.length} reference{activity.references.length === 1 ? "" : "s"}
       </div>
 
@@ -607,7 +650,7 @@ function Results({
           <button
             key={t}
             onClick={() => setTab(t)}
-            className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${tab === t ? "border-slate-900 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"}`}
+            className={`-mb-px border-b-2 px-4 py-2.5 text-sm font-medium transition ${tab === t ? "border-ink text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"}`}
           >
             {{ items: statementMode ? "Statement" : "Reconciliation", journal: "Journal entries", export: "Export" }[t]}
           </button>
@@ -624,7 +667,7 @@ function Results({
                 <button
                   key={f}
                   onClick={() => setFilter(f)}
-                  className={`rounded-full px-3 py-1 ring-1 ${filter === f ? "bg-slate-900 text-white ring-slate-900" : "bg-white text-slate-700 ring-slate-300 hover:bg-slate-100"}`}
+                  className={`nums rounded-full px-3 py-1 text-sm ring-1 transition ${filter === f ? "bg-ink text-white ring-ink" : "bg-white text-slate-700 ring-slate-200 hover:bg-slate-50"}`}
                 >
                   {f === "all" ? "All" : f === "exceptions" ? "Exceptions" : <StatusLabel status={f} />} · {count}
                 </button>
@@ -633,7 +676,7 @@ function Results({
           </div>
           <div className="card overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+              <thead className="table-head">
                 <tr>
                   <th className="px-4 py-3">Status</th>
                   <th className="px-4 py-3">Payment</th>
@@ -649,10 +692,10 @@ function Results({
                   const t = item.transfer;
                   const decided = item.evidence === "manual" && item.instruction ? decisions.find((d) => d.EndToEndId === item.instruction!.EndToEndId) : undefined;
                   return (
-                    <tr key={idx} className={isException(item.status) ? "bg-rose-50/30" : ""}>
+                    <tr key={idx} className={`transition hover:bg-slate-50/60 ${isException(item.status) ? "bg-rose-50/30" : ""}`}>
                       <td className="px-4 py-3 align-top" title={STATUS_HELP[item.status]}>
                         <StatusBadge status={item.status} />
-                        <div className={`mt-0.5 text-[11px] ${item.direction === "in" ? "text-emerald-700" : "text-slate-400"}`}>{item.direction === "in" ? "money in" : "money out"}</div>
+                        <div className={`mt-1 text-[11px] ${item.direction === "in" ? "text-emerald-700" : "text-slate-400"}`}>{item.direction === "in" ? "money in" : "money out"}</div>
                       </td>
                       <td className="px-4 py-3 align-top font-mono text-xs">
                         {item.instruction?.EndToEndId ?? (t?.memo?.decoded.kind === "payment" ? t.memo.decoded.memo.EndToEndId : item.candidateIds ? item.candidateIds.join(" / ") : "—")}
@@ -661,18 +704,18 @@ function Results({
                       </td>
                       <td className="px-4 py-3 align-top">
                         {item.instruction?.payeeName ?? <span className="text-slate-400">Unknown</span>}
-                        <div className="font-mono text-[11px] text-slate-500">{shortHash((item.direction === "in" ? (t?.from ?? item.instruction?.payer) : (t?.to ?? item.instruction?.recipient)) ?? "")}</div>
+                        <div className="mt-0.5"><Mono value={((item.direction === "in" ? (t?.from ?? item.instruction?.payer) : (t?.to ?? item.instruction?.recipient)) ?? "")} /></div>
                       </td>
-                      <td className="px-4 py-3 text-right align-top tabular-nums">{item.instruction ? item.instruction.amount : "—"}</td>
-                      <td className="px-4 py-3 text-right align-top tabular-nums">{t ? fromUnits(t.amount) : "—"}</td>
-                      <td className="px-4 py-3 align-top font-mono text-xs">
-                        {t ? <ExternalLink href={txUrl(network, t.txHash)}>{shortHash(t.txHash)}</ExternalLink> : item.candidates && item.instruction ? (
-                          <div className="space-y-1">
+                      <td className="nums px-4 py-3 text-right align-top">{item.instruction ? fmt(item.instruction.amount) : "—"}</td>
+                      <td className="nums px-4 py-3 text-right align-top">{t ? fmt(fromUnits(t.amount)) : "—"}</td>
+                      <td className="px-4 py-3 align-top">
+                        {t ? <Mono value={t.txHash} href={txUrl(network, t.txHash)} /> : item.candidates && item.instruction ? (
+                          <div className="space-y-1.5">
                             {item.candidates.map((c) => (
                               <div key={`${c.txHash}:${c.logIndex}`} className="flex items-center gap-2">
-                                <ExternalLink href={txUrl(network, c.txHash)}>{shortHash(c.txHash)}</ExternalLink>
+                                <Mono value={c.txHash} href={txUrl(network, c.txHash)} />
                                 <button
-                                  className="rounded border border-slate-300 px-1.5 py-0.5 font-sans text-[11px] text-slate-700 hover:bg-slate-100"
+                                  className="rounded-md border border-slate-200 bg-white px-1.5 py-0.5 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50"
                                   onClick={() => onDecide({ EndToEndId: item.instruction!.EndToEndId, txHash: c.txHash, logIndex: c.logIndex, note: "chosen in Tieout" })}
                                 >
                                   settle with this
@@ -682,7 +725,7 @@ function Results({
                           </div>
                         ) : "—"}
                       </td>
-                      <td className="px-4 py-3 align-top text-xs text-slate-600">{item.notes.join("; ")}</td>
+                      <td className="px-4 py-3 align-top text-xs leading-relaxed text-slate-600">{item.notes.join("; ")}</td>
                     </tr>
                   );
                 })}
@@ -699,7 +742,7 @@ function Results({
           </Notice>
           <div className="card overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="bg-slate-50 text-xs text-slate-500 uppercase">
+              <thead className="table-head">
                 <tr>
                   <th className="px-4 py-3">Date</th>
                   <th className="px-4 py-3">Narration</th>
@@ -712,13 +755,13 @@ function Results({
                 {journal.map((entry, i) =>
                   entry.lines.map((l, j) => (
                     <tr key={`${i}-${j}`} className={j === entry.lines.length - 1 ? "border-b border-slate-200" : ""}>
-                      <td className="px-4 py-2 align-top text-xs whitespace-nowrap text-slate-500">{j === 0 ? entry.date : ""}</td>
+                      <td className="nums px-4 py-2 align-top text-xs whitespace-nowrap text-slate-500">{j === 0 ? entry.date : ""}</td>
                       <td className="px-4 py-2 align-top text-xs">{j === 0 ? entry.narration : ""}</td>
                       <td className={`px-4 py-2 align-top text-xs ${Number(l.credit) > 0 ? "pl-10" : ""}`}>
                         <span className="font-mono text-slate-500">{l.account}</span> {l.accountName}
                       </td>
-                      <td className="px-4 py-2 text-right align-top tabular-nums">{Number(l.debit) > 0 ? l.debit : ""}</td>
-                      <td className="px-4 py-2 text-right align-top tabular-nums">{Number(l.credit) > 0 ? l.credit : ""}</td>
+                      <td className="nums px-4 py-2 text-right align-top">{Number(l.debit) > 0 ? fmt(l.debit) : ""}</td>
+                      <td className="nums px-4 py-2 text-right align-top">{Number(l.credit) > 0 ? fmt(l.credit) : ""}</td>
                     </tr>
                   )),
                 )}
@@ -732,7 +775,7 @@ function Results({
         <section className="grid gap-4 md:grid-cols-3">
           <ExportCard
             title="Audit bundle (JSON)"
-            body="Ledgers, the full chain scan, every decision and every reconciliation outcome in one file. Anyone with a public RPC can re-run it and get the same answer."
+            body="Ledgers, the full chain scan, every decision and every outcome in one file. `npm run verify-bundle` recomputes it and, with --rescan, checks the chain still agrees."
             label="Download JSON"
             onClick={() => download(`tieout-audit-${report.account.slice(2, 8)}-${report.generatedAt.slice(0, 10)}.json`, auditBundle(result), "application/json")}
           />
@@ -771,10 +814,10 @@ function Results({
 function EvidenceLabel({ item }: { item: ReconItem }) {
   const t = item.transfer;
   if (!t) return null;
-  if (item.evidence === "memo" || t.memo?.decoded.kind === "payment") return <div className="mt-0.5 font-sans text-[11px] text-emerald-700">memo on-chain</div>;
-  if (item.evidence === "reference") return <div className="mt-0.5 font-sans text-[11px] text-emerald-700">reference on-chain</div>;
-  if (item.evidence === "manual") return <div className="mt-0.5 font-sans text-[11px] text-amber-700">settled by hand</div>;
-  return <div className="mt-0.5 font-sans text-[11px] text-slate-400">{t.native ? "native send, no memo" : "no memo"}</div>;
+  if (item.evidence === "memo" || t.memo?.decoded.kind === "payment") return <div className="mt-1 font-sans text-[11px] text-emerald-700">memo on-chain</div>;
+  if (item.evidence === "reference") return <div className="mt-1 font-sans text-[11px] text-emerald-700">reference on-chain</div>;
+  if (item.evidence === "manual") return <div className="mt-1 font-sans text-[11px] text-amber-700">settled by hand</div>;
+  return <div className="mt-1 font-sans text-[11px] text-slate-400">{t.native ? "native send, no memo" : "no memo"}</div>;
 }
 
 /**
@@ -813,24 +856,24 @@ function AttachReferences({ items, networkId, onPublished }: { items: ReconItem[
       if (receipt.status !== "success") throw new Error("Transaction reverted");
       setSent({ hash, signer });
     } catch (e) {
-      setError((e as { shortMessage?: string }).shortMessage ?? (e as Error).message);
+      setError(friendly(e));
     } finally {
       setBusy(null);
     }
   }
 
   return (
-    <section className="card flex flex-wrap items-center justify-between gap-3 p-4">
-      <div className="text-sm">
-        <div className="font-medium">{items.length} payment{items.length === 1 ? "" : "s"} matched by intent only</div>
-        <div className="text-xs text-slate-600">
+    <section className="card flex flex-wrap items-center justify-between gap-4 p-5">
+      <div className="min-w-0 flex-1 text-sm">
+        <div className="font-semibold">{items.length} payment{items.length === 1 ? "" : "s"} matched by intent only</div>
+        <div className="mt-1 text-xs leading-relaxed text-slate-600">
           Publish on-chain references for them from any EOA (your ops wallet, for example). Each reference names the transaction and the EndToEndId, shares the
           payment's memoId, and costs about the same as one transfer. From then on these are first-class evidence, findable by id.
         </div>
         {error && <div className="mt-1 text-xs text-rose-700">{error}</div>}
         {sent && (
           <div className="mt-1 text-xs text-emerald-700">
-            Published in <ExternalLink href={txUrl(network, sent.hash)} className="font-mono">{shortHash(sent.hash)}</ExternalLink> by {shortHash(sent.signer)}.
+            Published in <ExternalLink href={txUrl(network, sent.hash)} className="font-mono">{sent.hash.slice(0, 10)}…</ExternalLink> by <span className="font-mono">{sent.signer.slice(0, 8)}…</span>.
           </div>
         )}
       </div>
@@ -852,7 +895,7 @@ function ExportCard({ title, body, onClick, label = "Download CSV" }: { title: s
     <div className="card flex flex-col justify-between gap-4 p-5">
       <div>
         <h3 className="font-semibold">{title}</h3>
-        <p className="mt-1 text-sm text-slate-600">{body}</p>
+        <p className="mt-1.5 text-sm leading-relaxed text-slate-600">{body}</p>
       </div>
       <button className="btn-secondary self-start" onClick={onClick}>{label}</button>
     </div>

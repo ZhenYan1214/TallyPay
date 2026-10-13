@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useState } from "react";
 import { NETWORKS, addressUrl, findMemos, fromUnits, memoIdFor, txUrl, type MemoLookupResult, type NetworkId } from "@tieout/sdk";
-import { ExternalLink, Notice } from "../components/ui.tsx";
+import { ExternalLink, Notice, PageHeader } from "../components/ui.tsx";
 import { publicClientFor } from "../lib/chain.ts";
 import { shortHash, type LoadedLedger } from "../lib/ledger-io.ts";
 import { DEMOS } from "./Console.tsx";
@@ -77,13 +77,11 @@ export default function Verify() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Verify a payment by its identifier</h1>
-        <p className="mt-1 text-sm text-slate-600">
-          No transaction hash needed. Arc indexes <code className="font-mono text-xs">memoId</code> on every Memo event, so an auditor holding only
-          the ledger's <code className="font-mono text-xs">EndToEndId</code> can ask the chain directly whether, when and how it was paid.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Verify"
+        title="Verify a payment by its identifier"
+        lead={<>No transaction hash needed. Arc indexes <code className="font-mono text-xs">memoId</code> on every Memo event, so an auditor holding only the ledger's <code className="font-mono text-xs">EndToEndId</code> can ask the chain directly whether, when and how it was paid.</>}
+      />
 
       <section className="card grid gap-4 p-5 md:grid-cols-12">
         <div className="md:col-span-3">
@@ -198,16 +196,16 @@ export default function Verify() {
       )}
 
       <section className="grid gap-4 md:grid-cols-3">
-        <div className="card p-5 text-sm text-slate-600">
+        <div className="card p-5 text-sm leading-relaxed text-slate-600">
           <h3 className="font-semibold text-slate-900">Why this matters</h3>
           <p className="mt-1">An accountant or auditor gets a list of identifiers, not transaction hashes. On Arc the identifier itself is the index.</p>
         </div>
-        <div className="card p-5 text-sm text-slate-600">
+        <div className="card p-5 text-sm leading-relaxed text-slate-600">
           <h3 className="font-semibold text-slate-900">How it is derived</h3>
           <p className="mt-1 font-mono text-xs">memoId = keccak256("tp1:" + EndToEndId)</p>
           <p className="mt-1">One topic-filtered <code className="font-mono text-xs">eth_getLogs</code> on the Memo contract. Any indexer can do the same.</p>
         </div>
-        <div className="card p-5 text-sm text-slate-600">
+        <div className="card p-5 text-sm leading-relaxed text-slate-600">
           <h3 className="font-semibold text-slate-900">What is checked</h3>
           <p className="mt-1">The memo's <code className="font-mono text-xs">callDataHash</code> is recomputed from the USDC transfer in the same transaction, so the memo provably belongs to that exact payment.</p>
         </div>
