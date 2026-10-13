@@ -1,6 +1,7 @@
 import type { CSSProperties, ReactNode } from "react";
 import { navigate, REPO_URL } from "../App.tsx";
 import { ExternalLink, StatusBadge } from "../components/ui.tsx";
+import { CountUp, CountUpInView, DrawnCheck, Reveal, useInView } from "../components/motion.tsx";
 import type { ReconStatus } from "@tieout/recon";
 
 const MAINNET_BATCH = "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e";
@@ -65,8 +66,17 @@ function Check({ className = "h-3.5 w-3.5" }: { className?: string }) {
   );
 }
 
-/** The reconciliation result: six real rows of run PB-202610-I7JR on Arc mainnet. */
+/**
+ * The reconciliation result: six real rows of run PB-202610-I7JR on Arc mainnet.
+ * On load it plays the reconciliation: rows land one by one, the settled total
+ * counts up and the unexplained amount counts down to zero.
+ */
+const ROW_START = 450;
+const ROW_STEP = 110;
+const ROWS_DONE = ROW_START + ROW_STEP * PREVIEW.length;
+
 function ResultCard() {
+  const at = (ms: number) => ({ "--d": `${ms}ms` }) as CSSProperties;
   return (
     <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-[0_1px_2px_rgba(11,18,32,0.05),0_24px_48px_-24px_rgba(11,18,32,0.22)]">
       <div className="flex items-center justify-between gap-3 border-b border-slate-200 px-4 py-3">
@@ -75,22 +85,30 @@ function ResultCard() {
           <div className="truncate font-mono text-[11.5px] text-slate-500">PB-202610-I7JR · 0x2ccb42…e841</div>
         </div>
         <span className="inline-flex shrink-0 items-center gap-1.5 rounded-md border border-slate-200 px-2 py-1 text-[11.5px] text-slate-600">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" aria-hidden />
+          <LiveDot />
           Arc mainnet
         </span>
       </div>
 
       <dl className="grid grid-cols-3 border-b border-slate-200">
-        {[
-          ["Settled", "1.345", "text-slate-900"],
-          ["Exceptions", "5", "text-rose-600"],
-          ["Unexplained", "0.000000", "text-emerald-600"],
-        ].map(([k, v, c], i) => (
-          <div key={k} className={`px-4 py-3 ${i ? "border-l border-slate-200" : ""}`}>
-            <dt className="text-[11.5px] text-slate-500">{k}</dt>
-            <dd className={`nums mt-0.5 truncate text-[17px] font-semibold tracking-[-0.02em] ${c}`}>{v}</dd>
-          </div>
-        ))}
+        <div className="px-4 py-3">
+          <dt className="text-[11.5px] text-slate-500">Settled</dt>
+          <dd className="mt-0.5 truncate text-[17px] font-semibold tracking-[-0.02em] text-slate-900">
+            <CountUp to={1.345} decimals={3} delay={ROW_START} duration={ROWS_DONE - ROW_START} />
+          </dd>
+        </div>
+        <div className="border-l border-slate-200 px-4 py-3">
+          <dt className="text-[11.5px] text-slate-500">Exceptions</dt>
+          <dd className="mt-0.5 truncate text-[17px] font-semibold tracking-[-0.02em] text-rose-600">
+            <CountUp to={5} delay={ROW_START} duration={ROWS_DONE - ROW_START} />
+          </dd>
+        </div>
+        <div className="border-l border-slate-200 px-4 py-3">
+          <dt className="text-[11.5px] text-slate-500">Unexplained</dt>
+          <dd className="mt-0.5 truncate text-[17px] font-semibold tracking-[-0.02em] text-emerald-600">
+            <CountUp from={1.49} to={0} decimals={6} delay={ROW_START} duration={ROWS_DONE - ROW_START + 300} />
+          </dd>
+        </div>
       </dl>
 
       <table className="w-full table-fixed text-[13px]">
@@ -100,10 +118,12 @@ function ResultCard() {
           <col className="w-[5.75rem]" />
         </colgroup>
         <tbody className="divide-y divide-slate-100">
-          {PREVIEW.map((r) => (
-            <tr key={r.id + r.amount}>
+          {PREVIEW.map((r, i) => (
+            <tr key={r.id + r.amount} className="row-in" style={at(ROW_START + i * ROW_STEP)}>
               <td className="py-2.5 pl-4">
-                <StatusBadge status={r.status} />
+                <span className="pop" style={at(ROW_START + i * ROW_STEP + 90)}>
+                  <StatusBadge status={r.status} />
+                </span>
               </td>
               <td className="truncate py-2.5 pr-2 text-slate-700">
                 <span className="mr-1.5 font-mono text-[11.5px] text-slate-400">{r.id}</span>
@@ -118,13 +138,23 @@ function ResultCard() {
         </tbody>
       </table>
 
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-slate-200 bg-slate-50 px-4 py-2.5 font-mono text-[11.5px] text-slate-500">
+      <div className="row-in flex flex-wrap items-center justify-between gap-x-4 gap-y-1 border-t border-slate-200 bg-slate-50 px-4 py-2.5 font-mono text-[11.5px] text-slate-500" style={at(ROWS_DONE + 100)}>
         <span>4.912582 + 0.06 − 1.49 − 0.018344</span>
         <span className="inline-flex items-center gap-1 text-emerald-700">
-          = 3.464238 on-chain <Check className="h-3 w-3" />
+          = 3.464238 on-chain <DrawnCheck className="h-3 w-3" delay={ROWS_DONE + 450} />
         </span>
       </div>
     </div>
+  );
+}
+
+/** Status dot with a soft radar ping. */
+function LiveDot() {
+  return (
+    <span className="relative inline-flex h-1.5 w-1.5" aria-hidden>
+      <span className="ping-soft absolute inset-0 rounded-full bg-emerald-400" />
+      <span className="relative h-1.5 w-1.5 rounded-full bg-emerald-500" />
+    </span>
   );
 }
 
@@ -165,13 +195,17 @@ function HeroVisual() {
       <div className="relative rounded-2xl border border-slate-200/80 bg-slate-100/80 p-3 sm:p-5 lg:p-6 xl:pb-28">
         <ResultCard />
         {/* Floating details, desktop only: they would crowd a phone screen. */}
-        <div className="pointer-events-none absolute right-10 -bottom-14 hidden xl:block">
+        <div className="float-in pointer-events-none absolute right-10 -bottom-14 hidden xl:block" style={{ "--d": `${ROWS_DONE + 750}ms` } as CSSProperties}>
           <JournalCard />
         </div>
       </div>
-      <div className="pointer-events-none absolute -top-3 right-8 hidden items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[12px] font-medium text-emerald-700 shadow-[0_8px_24px_-12px_rgba(11,18,32,0.25)] lg:inline-flex">
-        <Check className="h-3 w-3" />
-        Anchor verified on-chain
+      <div className="pointer-events-none absolute -top-3 right-8 hidden lg:block">
+        <span className="pop" style={{ "--d": `${ROWS_DONE + 500}ms` } as CSSProperties}>
+          <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[12px] font-medium text-emerald-700 shadow-[0_8px_24px_-12px_rgba(11,18,32,0.25)]">
+            <DrawnCheck className="h-3 w-3" delay={ROWS_DONE + 700} />
+            Anchor verified on-chain
+          </span>
+        </span>
       </div>
       <figcaption className="mt-3 text-[12.5px] text-slate-500 xl:mt-4 xl:max-w-[14rem] xl:leading-relaxed">
         Six rows from a real run on Arc mainnet.{" "}
@@ -181,38 +215,51 @@ function HeroVisual() {
   );
 }
 
-/** Real call shapes and memo format, set as code. */
+/** Real call shapes and memo format, set as code. Lines appear in order when scrolled into view. */
 function CodePanel() {
-  const k = (s: ReactNode) => <span className="text-sky-300">{s}</span>;
-  const str = (s: ReactNode) => <span className="text-emerald-300">{s}</span>;
-  const c = (s: ReactNode) => <span className="text-slate-500">{s}</span>;
+  const [ref, inView] = useInView<HTMLDivElement>(0.3);
+  const k = (t: ReactNode) => <span className="text-sky-300">{t}</span>;
+  const str = (t: ReactNode) => <span className="text-emerald-300">{t}</span>;
+  const c = (t: ReactNode) => <span className="text-slate-500">{t}</span>;
+  const lines: ReactNode[] = [
+    c("// One payout run is one transaction from the payer's wallet"),
+    <>{k("Multicall3From")}.aggregate3([</>,
+    <>{"  "}{k("Memo")}.memo(USDC, transfer(payer, {str("0")}),     {c("/* run anchor */")}),</>,
+    <>{"  "}{k("Memo")}.memo(USDC, transfer(S01, {str("0.184")}), {str('"…-S01"')}),</>,
+    <>{"  "}{k("Memo")}.memo(USDC, transfer(S02, {str("0.097")}), {str('"…-S02"')}),</>,
+    <>{"  "}{c("…")}</>,
+    "])",
+    " ",
+    c("// The memo each transfer carries (ISO 20022 field names)"),
+    "tp1:{",
+    <>{"  "}{str('"EndToEndId"')}: {str('"PB-202610-I7JR-S01"')},</>,
+    <>{"  "}{str('"PmtInfId"')}:   {str('"PB-202610-I7JR"')},</>,
+    <>{"  "}{str('"Purp"')}:       {str('"COMM"')},</>,
+    <>{"  "}{str('"CdtrRef"')}:    {str('"STMT-202610-S01"')}</>,
+    "}",
+  ];
   return (
-    <div className="overflow-hidden rounded-xl border border-white/10 bg-[#070c17]">
+    <div ref={ref} className="overflow-hidden rounded-xl border border-white/10 bg-[#070c17]">
       <div className="flex items-center gap-4 border-b border-white/10 px-4 text-[12px]">
         <span className="-mb-px border-b border-emerald-400 py-2.5 text-slate-200">payout-run.ts</span>
         <span className="py-2.5 text-slate-500">memo.json</span>
       </div>
       <pre className="overflow-x-auto p-4 font-mono text-[12px] leading-[1.75] text-slate-300">
-        {c("// One payout run is one transaction from the payer's wallet")}
-        {"\n"}
-        {k("Multicall3From")}.aggregate3([{"\n"}
-        {"  "}{k("Memo")}.memo(USDC, transfer(payer, {str("0")}),     {c("/* run anchor */")}),{"\n"}
-        {"  "}{k("Memo")}.memo(USDC, transfer(S01, {str("0.184")}), {str('"…-S01"')}),{"\n"}
-        {"  "}{k("Memo")}.memo(USDC, transfer(S02, {str("0.097")}), {str('"…-S02"')}),{"\n"}
-        {"  "}{c("…")}{"\n"}
-        ]){"\n"}
-        {"\n"}
-        {c("// The memo each transfer carries (ISO 20022 field names)")}
-        {"\n"}
-        tp1:{"{"}{"\n"}
-        {"  "}{str('"EndToEndId"')}: {str('"PB-202610-I7JR-S01"')},{"\n"}
-        {"  "}{str('"PmtInfId"')}:   {str('"PB-202610-I7JR"')},{"\n"}
-        {"  "}{str('"Purp"')}:       {str('"COMM"')},{"\n"}
-        {"  "}{str('"CdtrRef"')}:    {str('"STMT-202610-S01"')}{"\n"}
-        {"}"}
+        {lines.map((line, i) => (
+          <div key={i} className={inView ? "row-in" : "opacity-0"} style={{ "--d": `${i * 55}ms` } as CSSProperties}>
+            {line}
+          </div>
+        ))}
       </pre>
     </div>
   );
+}
+
+/** "$226B" -> { prefix: "$", value: 226, decimals: 0, suffix: "B" } */
+function parseFigure(n: string) {
+  const m = /^(\D*)([\d.]+)(\D*)$/.exec(n)!;
+  const digits = m[2]!;
+  return { prefix: m[1]!, value: Number(digits), decimals: digits.includes(".") ? digits.split(".")[1]!.length : 0, suffix: m[3]! };
 }
 
 export default function Overview() {
@@ -225,9 +272,12 @@ export default function Overview() {
             href={`https://explorer.arc.io/tx/${MAINNET_BATCH}`}
             className="rise inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white py-1 pr-3 pl-1 text-[12.5px] text-slate-600 no-underline hover:border-slate-300 hover:no-underline"
           >
-            <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[11.5px] font-medium text-emerald-700">Live</span>
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2 py-0.5 text-[11.5px] font-medium text-emerald-700">
+              <LiveDot />
+              Live
+            </span>
             Running on Arc mainnet
-            <span className="text-slate-400">→</span>
+            <span className="nudge text-slate-400">→</span>
           </ExternalLink>
           <h1 className="rise mt-6 text-[44px] leading-[1.02] font-semibold tracking-[-0.045em] text-balance text-ink sm:text-[62px]" style={stagger(1)}>
             Check every USDC payment on Arc against your books.
@@ -239,7 +289,7 @@ export default function Overview() {
           <div className="rise mt-9 flex flex-wrap items-center gap-3" style={stagger(3)}>
             <button className="btn-primary h-11 px-5 text-[14px]" onClick={() => navigate("console", "demo")}>
               Try the mainnet demo
-              <span aria-hidden>→</span>
+              <span className="nudge" aria-hidden>→</span>
             </button>
             <button className="btn-secondary h-11 px-5 text-[14px]" onClick={() => navigate("pay")}>Pay or request</button>
           </div>
@@ -257,17 +307,22 @@ export default function Overview() {
 
       {/* Figures */}
       <section className="grid gap-10 border-t border-slate-200 pt-12 sm:grid-cols-3 sm:gap-8">
-        {FIGURES.map((f) => (
-          <div key={f.n}>
-            <div className="nums text-[44px] leading-none font-semibold tracking-[-0.045em] text-ink">{f.n}</div>
-            <p className="mt-4 max-w-[19rem] text-[14.5px] leading-relaxed text-slate-600">{f.body}</p>
-            <ExternalLink href={f.href} className="mt-2.5 inline-block text-[12.5px] text-slate-500">{f.src}</ExternalLink>
-          </div>
-        ))}
+        {FIGURES.map((f, i) => {
+          const p = parseFigure(f.n);
+          return (
+            <Reveal key={f.n} delay={i * 120}>
+              <div className="text-[44px] leading-none font-semibold tracking-[-0.045em] text-ink">
+                <CountUpInView to={p.value} decimals={p.decimals} prefix={p.prefix} suffix={p.suffix} delay={i * 120} />
+              </div>
+              <p className="mt-4 max-w-[19rem] text-[14.5px] leading-relaxed text-slate-600">{f.body}</p>
+              <ExternalLink href={f.href} className="mt-2.5 inline-block text-[12.5px] text-slate-500">{f.src}</ExternalLink>
+            </Reveal>
+          );
+        })}
       </section>
 
       {/* How it works, on ink */}
-      <section className="overflow-hidden rounded-2xl bg-ink text-white">
+      <Reveal as="section" className="overflow-hidden rounded-2xl bg-ink text-white">
         <div className="grid gap-12 p-7 sm:p-10 lg:grid-cols-[0.9fr_1.1fr] lg:gap-14 lg:p-14">
           <div>
             <p className="text-[13px] font-medium text-emerald-400">How it works</p>
@@ -275,14 +330,14 @@ export default function Overview() {
               Built on contracts Arc already ships.
             </h2>
             <ol className="mt-10 space-y-7">
-              {STEPS.map((s, i) => (
-                <li key={s.title} className="grid grid-cols-[2.25rem_1fr] gap-3">
+              {STEPS.map((step, i) => (
+                <Reveal as="li" key={step.title} delay={200 + i * 150} className="grid grid-cols-[2.25rem_1fr] gap-3">
                   <span className="nums flex h-7 w-7 items-center justify-center rounded-full border border-white/15 font-mono text-[12px] text-slate-300">{i + 1}</span>
                   <div>
-                    <h3 className="text-[16px] font-semibold tracking-[-0.01em]">{s.title}</h3>
-                    <p className="mt-1.5 text-[14.5px] leading-relaxed text-slate-400">{s.body}</p>
+                    <h3 className="text-[16px] font-semibold tracking-[-0.01em]">{step.title}</h3>
+                    <p className="mt-1.5 text-[14.5px] leading-relaxed text-slate-400">{step.body}</p>
                   </div>
-                </li>
+                </Reveal>
               ))}
             </ol>
           </div>
@@ -294,11 +349,11 @@ export default function Overview() {
             </p>
           </div>
         </div>
-      </section>
+      </Reveal>
 
       {/* Outcomes */}
       <section>
-        <div className="flex flex-wrap items-end justify-between gap-4">
+        <Reveal className="flex flex-wrap items-end justify-between gap-4">
           <div>
             <h2 className="text-[28px] leading-[1.15] font-semibold tracking-[-0.035em] text-ink">Seven possible results</h2>
             <p className="mt-2 max-w-lg text-[15px] leading-relaxed text-slate-600">
@@ -306,14 +361,16 @@ export default function Overview() {
             </p>
           </div>
           <button className="text-[13.5px] font-medium text-slate-700 underline decoration-slate-300 underline-offset-4 hover:decoration-slate-600" onClick={() => navigate("console", "demo")}>
-            Open this run →
+            Open this run <span className="nudge">→</span>
           </button>
-        </div>
+        </Reveal>
         <div className="mt-7 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200 bg-slate-200 sm:grid-cols-4 lg:grid-cols-7">
-          {OUTCOMES.map(([st, n]) => (
-            <div key={st} className="bg-white p-4">
+          {OUTCOMES.map(([st, n], i) => (
+            <div key={st} className="bg-white p-4 transition-colors hover:bg-slate-50">
               <StatusBadge status={st} />
-              <div className={`nums mt-4 text-[30px] leading-none font-semibold tracking-[-0.04em] ${n ? "text-ink" : "text-slate-300"}`}>{n}</div>
+              <div className={`mt-4 text-[30px] leading-none font-semibold tracking-[-0.04em] ${n ? "text-ink" : "text-slate-300"}`}>
+                <CountUpInView to={n} delay={i * 70} duration={900} />
+              </div>
             </div>
           ))}
           <div className="bg-white p-4 lg:hidden" aria-hidden />
@@ -321,16 +378,18 @@ export default function Overview() {
       </section>
 
       {/* Closing */}
-      <section className="flex flex-col items-start justify-between gap-6 rounded-2xl border border-slate-200 bg-white p-7 sm:flex-row sm:items-center sm:p-9">
+      <Reveal as="section" className="flex flex-col items-start justify-between gap-6 rounded-2xl border border-slate-200 bg-white p-7 sm:flex-row sm:items-center sm:p-9">
         <div>
           <h2 className="text-[22px] font-semibold tracking-[-0.03em] text-ink">See it on real transactions.</h2>
           <p className="mt-1.5 text-[14.5px] text-slate-600">The demo reconciles a fictional marketplace's payouts, sent on Arc mainnet.</p>
         </div>
         <div className="flex shrink-0 gap-3">
-          <button className="btn-primary h-10 px-4" onClick={() => navigate("console", "demo")}>Run the demo</button>
+          <button className="btn-primary h-10 px-4" onClick={() => navigate("console", "demo")}>
+            Run the demo <span className="nudge" aria-hidden>→</span>
+          </button>
           <ExternalLink href={REPO_URL} className="btn-secondary h-10 px-4 no-underline hover:no-underline">View source</ExternalLink>
         </div>
-      </section>
+      </Reveal>
     </div>
   );
 }
