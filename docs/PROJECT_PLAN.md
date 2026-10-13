@@ -2,7 +2,7 @@
 
 > Arc 上的對帳層：讓 Arc 上的 USDC 金流，自動對到帳本、抓出異常、變成會計分錄。
 >
-> 最後更新：2026-10-13 · 狀態：測試網功能全部完成，等待主網部署
+> 最後更新：2026-10-13 · 狀態：測試網功能全部完成，第二輪模擬審查的修正已完成，等待主網部署
 
 ---
 
@@ -169,6 +169,24 @@
 
 **模擬審查結論：** 修正後很可能進入入選名單，前提是執行品質到位。
 
+### 3.6 第二輪模擬審查（2026-10-13）與修正
+
+把自己當成 Circle Arc 審查員，用官方四個評分項目（Arc 相關性、技術可信度、作品品質、值不值得繼續做）重看一次，找出「會質疑、會懷疑、不會喜歡」的地方，逐項修掉：
+
+| 審查員會問的問題 | 修正 |
+|---|---|
+| 「repo 拉下來 build 得起來嗎？」 | lockfile 沒收錄 web workspace，`npm ci` 會失敗。重新產生 lockfile；CI 加上 `typecheck` |
+| 「`npm audit` 有 critical？」 | 來自 vitest 2.x 的開發相依。升級到 vitest 5 + vite 8，現在 0 個漏洞 |
+| 「Memo 的 `memoId` 有 index，你有用到嗎？」 | 新增 **Verify** 頁：只憑 `EndToEndId` 就查到付款，並用 `callDataHash` 證明 memo 屬於那筆轉帳 |
+| 「公開 RPC 掛了，demo 就是空白？」 | demo 附帶鏈上掃描快照（`*.activity.json`）。即時掃描失敗時自動改用快照，畫面明確標示，連結仍指向真實瀏覽器 |
+| 「我要點幾下才看得到結果？」 | 首頁按鈕直接載入並執行 demo（`#/console?demo`）；結果上方有「這個 demo 在示範什麼」面板，每個情境附真實交易連結 |
+| 「Pay 頁預設測試網，是不是 testnet-only？」 | Pay、Reconcile、Verify 全部預設主網 |
+| 「為什麼用 JSON 不用 ABI 編碼？錨點那筆 0 元自轉帳是什麼？」 | README 新增「審查員會問的設計決策」一節；gas 實測表證明 memo 不是成本重點 |
+| 「這和 Circle Mint 報表、Bitwave 有什麼不同？」 | README 新增比較表，以及 Stellar memo、Solana Pay reference、Tempo TIP-20 memo 三個已上線先例 |
+| 「memo 格式只是你們自己的東西？」 | 獨立規格書 `docs/MEMO_SPEC.md`，含 ISO 20022 對應、memoId 推導、連結規則、版本策略 |
+| 「投稿說明要寫什麼？」 | `docs/SUBMISSION.md`：表單欄位文字、90 秒影片腳本、投稿前檢查清單、常見質疑的回答 |
+| 「git 只有一個 commit？」 | 後續修改拆成有意義的 commit |
+
 ---
 
 ## 4. 最終定位
@@ -206,14 +224,15 @@
 
 ## 5. 功能設計
 
-### 5.1 四個步驟
+### 5.1 五個步驟
 
 | 步驟 | 做什麼 | 用到的 Arc 功能 |
 |---|---|---|
 | **① 標記** | 每筆付款附上 ISO 20022 格式的 Memo | `Memo` 合約 |
 | **② 批次與錨定** | 一筆交易付完整批；第一個呼叫錨定帳本雜湊 | `Multicall3From` |
 | **③ 對帳** | 讀取錢包活動，跟帳本比對 | 公開 RPC、事件紀錄 |
-| **④ 入帳** | 產生複式分錄，匯出 CSV、Xero 格式 | USDC gas（手續費是美元費用） |
+| **④ 查驗** | 只憑 `EndToEndId` 在鏈上找到付款，並驗證 memo 屬於那筆轉帳 | `Memo` 事件的 indexed `memoId`、`callDataHash` |
+| **⑤ 入帳** | 產生複式分錄，匯出 CSV、Xero 格式 | USDC gas（手續費是美元費用） |
 
 ### 5.2 六種對帳狀態
 
@@ -260,12 +279,12 @@ tp1-run:{"PmtInfId":"PB-202610-ELLE","NbOfTxs":10,"CtrlSum":"1.367","LedgerHash"
 ```
 Circle_arc/
 ├── packages/
-│   ├── sdk/        @tallypay/sdk    網路設定、ABI、Memo 編解碼、帳本雜湊、批次組裝、鏈上讀取
+│   ├── sdk/        @tallypay/sdk    網路設定、ABI、Memo 編解碼、帳本雜湊、批次組裝、鏈上讀取、memoId 查詢、掃描快照
 │   └── recon/      @tallypay/recon  對帳引擎、錨點驗證、分錄產生、CSV/Xero 匯出
 ├── apps/
-│   └── web/        @tallypay/web    純前端網站：Overview、Reconcile、Pay a run
-├── scripts/                         命令列工具：技術驗證、示範情境、對帳、回收、測試錢包
-├── docs/                            本規劃書
+│   └── web/        @tallypay/web    純前端網站：Overview、Reconcile、Verify、Pay a run
+├── scripts/                         命令列工具：技術驗證、示範情境、對帳、gas 報告、快照、回收、測試錢包
+├── docs/                            本規劃書、Memo 規格書（MEMO_SPEC.md）、投稿稿（SUBMISSION.md）
 └── .github/workflows/pages.yml      推上 GitHub 自動測試、建置、部署
 ```
 
@@ -305,7 +324,7 @@ ReconReport { items, anchors, summary }
 | 語言 | TypeScript | 前後端共用 SDK |
 | 鏈互動 | viem | 型別安全、輕量 |
 | 前端 | Vite + React + Tailwind v4 | 靜態網站，可部署在任何地方 |
-| 測試 | Vitest | 16 個單元測試 |
+| 測試 | Vitest 5 | 21 個單元測試；`npm audit` 0 個漏洞 |
 | 命令列 | tsx | 直接執行 TypeScript |
 | 部署 | GitHub Pages + Actions | 只需要 GitHub 帳號 |
 | 授權 | Apache-2.0 | — |
@@ -324,6 +343,9 @@ ReconReport { items, anchors, summary }
 | 錨點跟誰比對？ | **同一筆交易內的付款** | 避免另外付款或暫緩的項目造成誤判 |
 | 手續費怎麼入帳？ | **每日彙總一筆** | 單筆手續費只有零點幾分錢 |
 | Xero 匯出怎麼捨入？ | **整數運算、絕對值四捨五入** | 避免借貸不平衡（JS 的 Math.round 遇負數 .5 會出錯） |
+| Memo 為什麼用 JSON 不用 ABI 編碼？ | **JSON** | 瀏覽器和稽核檔案直接可讀、不需工具解碼、欄位名一對一對應 ISO 20022；實測成本差異很小，規格書保留 `tp2:` 前綴給二進位版本 |
+| 錨點為什麼包一筆 0 元自轉帳？ | **必要的載體** | `Memo` 一定要包一個內部呼叫；`transfer(payer, 0)` 是最便宜又無害的，讀取端會過濾掉 |
+| RPC 掛掉怎麼辦？ | **快照備援** | demo 附帶同一區塊範圍的掃描快照；即時掃描失敗才用，畫面明確標示 |
 | 介面語言 | **英文** | 評審是 Circle 國際團隊；README 附中文簡介 |
 
 ---
@@ -343,6 +365,7 @@ ReconReport { items, anchors, summary }
 | 公開 RPC 不支援 `debug_traceCall`、`eth_simulateV1` | 只能用真實測試網交易驗證事件 |
 | 原生 USDC 18 位小數、ERC-20 介面 6 位小數，同一筆餘額 | 一律用 ERC-20 介面，以 6 位小數記帳 |
 | Memo 只接受 EOA 直接呼叫 | 智能合約錢包要靠意圖比對 |
+| 批次裡一筆帶 Memo 的付款（含攤提的錨點）約 64,000 gas；單獨一筆純轉帳約 74,000 gas | Memo 不是成本重點，批次攤掉基本費才是；一筆帶 Memo 的付款比純轉帳便宜 13% |
 
 ---
 
@@ -372,10 +395,12 @@ ReconReport { items, anchors, summary }
 | SDK：Memo 編解碼、帳本雜湊、批次組裝、鏈上讀取 | ✅ |
 | 對帳引擎：六種狀態 + 錨點驗證（精準指出被改的項目） | ✅ |
 | 會計輸出：複式分錄、通用 CSV、Xero 匯入檔 | ✅ |
-| 網站：Overview、Reconcile、Pay a run | ✅ |
-| 命令列：技術驗證、示範情境、對帳、資金回收、測試錢包 | ✅ |
-| 單元測試 16 個 | ✅ 全部通過 |
-| README（英文 + 中文簡介）、Apache-2.0 授權 | ✅ |
+| 網站：Overview、Reconcile、Verify、Pay a run | ✅ |
+| Reconcile：首頁一鍵自動執行 demo、情境導覽面板、RPC 失敗時改用快照 | ✅ |
+| Verify：憑 `EndToEndId` 查鏈上 memo，`callDataHash` 連結到轉帳 | ✅（測試網實測） |
+| 命令列：技術驗證、示範情境、對帳、gas 報告、快照、資金回收、測試錢包 | ✅ |
+| 單元測試 21 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + build | ✅ 全部通過 |
+| README（英文 + 中文簡介）、Memo 規格書、投稿稿、Apache-2.0 授權 | ✅ |
 | GitHub Pages 自動部署流程 | ✅（尚未推送） |
 
 ### 10.2 測試網驗證紀錄
@@ -397,6 +422,13 @@ ReconReport { items, anchors, summary }
 手續費：0.0166 USDC（3 筆交易）
 ```
 
+**gas 實測（`npm run gas`，測試網，21 gwei）：**
+
+| 交易 | 內容 | gas | 手續費 (USDC) | 每筆付款 (USDC) |
+|---|---|---:|---:|---:|
+| 0x1bafdd…8223 | 批次：10 筆帶 Memo 的付款 + 錨點 | 642,626 | 0.013495 | 0.001350 |
+| 0x0a9565…a677 | 單筆純轉帳，沒有 Memo | 73,950 | 0.001553 | 0.001553 |
+
 ### 10.3 開發中修掉的問題
 
 | 問題 | 修正 |
@@ -410,23 +442,26 @@ ReconReport { items, anchors, summary }
 
 ## 11. 剩餘工作與投稿清單
 
-### 11.1 測試網（進行中）
+### 11.1 測試網
 
-- [ ] EURC 付款與匯率入帳
-- [ ] 手機版面檢查
-- [ ] 投稿說明與展示影片腳本草稿
+- [x] 第二輪模擬審查的修正（見 3.6）
+- [x] 投稿說明與展示影片腳本（`docs/SUBMISSION.md`）
+- [ ] EURC 付款與匯率入帳（延後，不影響評分）
+- [ ] 手機版面檢查（延後）
 
 ### 11.2 主網（使用者確認後再進行）
 
 - [ ] 在 `.env` 填入 `MAINNET_PRIVATE_KEY`，Arc 主網錢包準備至少 2 USDC
 - [ ] 執行 `npm run demo -- --network=arc-mainnet`
-- [ ] 網站切換成主網示範資料
-- [ ] 示範完執行 `npm run sweep -- --network=arc-mainnet` 回收資金
+- [ ] 執行 `npm run snapshot -- apps/web/public/demo/promptbazaar-arc-mainnet.json`（快照備援）
+- [ ] 執行 `npm run gas -- apps/web/public/demo/promptbazaar-arc-mainnet.json`，把表格貼進 README「What it costs」
+- [ ] 網站會自動優先使用主網示範資料；確認首頁按鈕一鍵跑通
+- [ ] 示範完執行 `npm run sweep -- --network=arc-mainnet` 回收資金（可等審查期過後）
 
 ### 11.3 發布
 
-- [ ] 使用者同意後建立 git commit
-- [ ] 建立 GitHub 公開 repo 並推送
+- [x] 修改拆成有意義的 git commit（本機）
+- [ ] 推送到 GitHub 公開 repo（remote 已設定）
 - [ ] 在 repo 設定裡開啟 GitHub Pages（Source：GitHub Actions）
 - [ ] README 補上網站網址與主網交易連結
 
@@ -434,8 +469,8 @@ ReconReport { items, anchors, summary }
 
 - [ ] 主網上可以打開的網站連結
 - [ ] 公開 repo 連結
-- [ ] 專案說明（做什麼、用 Arc 做什麼）
-- [ ] 公開個人檔案（GitHub、X 或 Farcaster）
+- [ ] 專案說明（做什麼、用 Arc 做什麼）：`docs/SUBMISSION.md` 已寫好，填入連結即可
+- [ ] 公開個人檔案（GitHub、X 或 Farcaster）：確認有頭像、名字、釘選這個 repo
 - [ ] 截止：台灣時間 10/15（四）早上 11:59
 
 ---
