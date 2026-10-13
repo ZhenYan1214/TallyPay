@@ -26,6 +26,7 @@ jobs:
       - run: npm ci
       - run: npm run typecheck
       - run: npm test
+      - run: npm run build:packages
       - run: npm run build --workspace @tieout/web
       - uses: actions/upload-pages-artifact@v3
         with:

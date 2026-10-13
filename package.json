@@ -18,7 +18,9 @@
     "testwallet": "tsx scripts/dev-test-wallet.ts",
     "sweep": "tsx scripts/sweep-demo.ts",
     "gas": "tsx scripts/gas-report.ts",
-    "snapshot": "tsx scripts/snapshot-demo.ts"
+    "snapshot": "tsx scripts/snapshot-demo.ts",
+    "build:packages": "npm run build --workspace @tieout/sdk && npm run build --workspace @tieout/recon",
+    "build": "npm run build:packages && npm run build --workspace @tieout/web"
   },
   "devDependencies": {
     "@types/node": "^22.10.0",

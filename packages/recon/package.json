@@ -1,11 +1,45 @@
 {
   "name": "@tieout/recon",
   "version": "0.1.0",
-  "description": "Reconciles Arc USDC activity against a payer's ledger and produces journal entries",
+  "description": "Reconciles Arc USDC activity against a ledger and produces journal entries, Xero/QuickBooks files and camt.054",
   "license": "Apache-2.0",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src",
+    "README.md"
+  ],
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"require('fs').rmSync('dist',{recursive:true,force:true})\""
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ZhenYan1214/ARC.git",
+    "directory": "packages/recon"
+  },
+  "keywords": [
+    "arc",
+    "circle",
+    "usdc",
+    "reconciliation",
+    "iso20022",
+    "memo",
+    "accounting"
+  ],
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@tieout/sdk": "0.1.0",
     "viem": "^2.21.0"

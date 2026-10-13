@@ -20,7 +20,13 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
-    "noFallthroughCasesInSwitch": true
+    "noFallthroughCasesInSwitch": true,
+
+    /* Workspace packages from source, matching the Vite alias */
+    "paths": {
+      "@tieout/sdk": ["../../packages/sdk/src/index.ts"],
+      "@tieout/recon": ["../../packages/recon/src/index.ts"]
+    }
   },
   "include": ["src"]
 }
