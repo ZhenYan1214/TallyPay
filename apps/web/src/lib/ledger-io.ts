@@ -1,6 +1,8 @@
 import type { PayoutInstruction, PayoutRunLedger, TokenSymbol } from "@tallypay/sdk";
 
 export type LoadedLedger = PayoutRunLedger & {
+  /** Frozen chain scan to fall back on when the public RPC fails (demos only). */
+  snapshotUrl?: string;
   scan?: { fromBlock: string; toBlock: string };
   scenario?: Record<string, string>;
 };

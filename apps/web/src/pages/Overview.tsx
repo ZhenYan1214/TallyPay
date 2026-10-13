@@ -14,6 +14,10 @@ const STEPS = [
     body: "Tallypay reads the wallet's activity and matches it to your ledger: by memo when present, by recipient and amount when the payer used a Safe or MPC wallet that can't attach memos.",
   },
   {
+    title: "Verify",
+    body: "Anyone holding only an EndToEndId can find the payment on-chain through Arc's indexed memoId, and see that the memo's callDataHash matches that exact transfer.",
+  },
+  {
     title: "Book",
     body: "Matched payouts become balanced journal entries; exceptions land in suspense for review. Export a CSV or a Xero manual journal.",
   },
@@ -49,7 +53,8 @@ export default function Overview() {
             journal entries your accountant can import.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
-            <button className="btn-primary" onClick={() => navigate("console")}>Try the PromptBazaar demo</button>
+            <button className="btn-primary" onClick={() => navigate("console", "demo")}>Run the PromptBazaar demo</button>
+            <button className="btn-secondary" onClick={() => navigate("verify")}>Verify a payment</button>
             <button className="btn-secondary" onClick={() => navigate("pay")}>Pay a run</button>
           </div>
         </div>
@@ -99,7 +104,7 @@ export default function Overview() {
 
       <section>
         <h2 className="text-xl font-semibold">How it works</h2>
-        <div className="mt-4 grid gap-4 md:grid-cols-4">
+        <div className="mt-4 grid gap-4 md:grid-cols-5">
           {STEPS.map((s, i) => (
             <div key={s.title} className="card p-5">
               <div className="flex h-7 w-7 items-center justify-center rounded-full bg-slate-900 text-xs font-semibold text-white">{i + 1}</div>
@@ -152,6 +157,7 @@ export default function Overview() {
             <li>Webhook ingestion from payouts providers on Arc</li>
             <li>EURC and local stablecoins with recorded FX rates</li>
             <li>View-key based audits once Arc's opt-in privacy ships</li>
+            <li>Propose the tp1 memo schema to the Arc team as a shared convention</li>
           </ul>
         </div>
       </section>

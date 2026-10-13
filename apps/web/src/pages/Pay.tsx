@@ -22,7 +22,7 @@ const TEMPLATE: PayoutInstruction[] = [
 ];
 
 export default function Pay({ onReconcile }: { onReconcile: (ledger: LoadedLedger) => void }) {
-  const [networkId, setNetworkId] = useState<NetworkId>("arc-testnet");
+  const [networkId, setNetworkId] = useState<NetworkId>("arc-mainnet");
   const [account, setAccount] = useState<Address | null>(null);
   const [balance, setBalance] = useState<string | null>(null);
   const [runId, setRunId] = useState(() => `RUN-${new Date().toISOString().slice(0, 10).replace(/-/g, "")}-${Math.random().toString(36).slice(2, 6).toUpperCase()}`);
