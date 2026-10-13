@@ -90,10 +90,10 @@ export default function Overview() {
         <div className="card p-5">
           <div className="text-3xl font-semibold">70%</div>
           <p className="mt-1 text-sm text-slate-600">
-            of 350 executives in an EY-Parthenon survey said ERP integration would speed up their stablecoin adoption; 38% cited
-            accounting and tax treatment as a barrier.
+            of 350 corporate and financial-institution decision makers told EY-Parthenon they would be more inclined to adopt stablecoins
+            with ERP integrations available; 38% cited accounting and tax treatment as a barrier.
           </p>
-          <a className="mt-2 inline-block text-xs text-slate-500 underline" href="https://www.gdf.io/wp-content/uploads/2026/06/Digital-Finance-Forum-Readout-Q1_2026.pdf" target="_blank" rel="noreferrer">GDF readout, Q1 2026</a>
+          <a className="mt-2 inline-block text-xs text-slate-500 underline" href="https://www.ey.com/en_us/insights/financial-services/cost-savings-and-speed-drive-stablecoin-adoption" target="_blank" rel="noreferrer">EY-Parthenon, Sept 2025 (n=350)</a>
         </div>
         <div className="card p-5">
           <div className="text-3xl font-semibold">0 new contracts</div>

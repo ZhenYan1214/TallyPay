@@ -8,6 +8,7 @@
 | **Mainnet demo run** | _TODO: explorer link to the PromptBazaar batch on Arc mainnet_ |
 | **Memo spec** | [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md), a proposal for an Arc-wide payment memo convention |
 | **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): evidence grades, trust boundaries, what is deliberately left out |
+| **Integrate** | [docs/INTEGRATION.md](docs/INTEGRATION.md): emit memos, publish references, reconcile, in a few lines each |
 | **Built on** | Arc's predeployed `Memo` and `Multicall3From`, both verified deployed on mainnet. No custom contracts, no backend, no keys on a server. |
 
 > USDC settles in under a second. Books still take weeks. Payment rails for stablecoins are crowded; what happens after the money lands is not.
@@ -193,12 +194,12 @@ packages/sdk     @tieout/sdk    networks, ABIs, memo codec, ledger hashing, batc
 packages/recon   @tieout/recon  reconciliation engine (both directions, variance, roll-forward), anchor check, journal builder, CSV / Xero / QBO / camt.054
 apps/web         @tieout/web    static React app: Overview, Reconcile, Verify, Pay a run, Request a payment
 scripts/                          CLI: spike, PromptBazaar scenario, reconcile, gas report, snapshot, sweep
-docs/                             memo spec, submission kit, research notes (zh-TW), project plan (zh-TW)
+docs/                             memo spec, architecture, integration guide, submission kit, research notes (zh-TW), project plan (zh-TW)
 ```
 
 - **No backend and no keys on a server.** The web app reads Arc directly from the browser. Payouts are signed by the user's own wallet (EIP-1193).
 - **No custom contracts.** Payments go through Arc's predeployed `Memo` (`0x5294…e505`) and `Multicall3From` (`0x522f…47D0`).
-- 38 unit tests cover the memo codec, batching, reference memos, memo-to-transfer linking, snapshots, reconciliation in both directions with all three evidence grades, ambiguity, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
+- 44 unit tests cover the memo codec, batching, reference memos, the chain reader against a fake RPC that emits Arc's exact log shapes (ERC-20 twin logs, native sends, anchors, references, fees, balances), memoId lookup, date-to-block search, snapshots, reconciliation in both directions with all three evidence grades, ambiguity, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
 
 ## Run it
 
@@ -251,6 +252,9 @@ Then fill in the two links at the top of this file, commit the two new files und
 Journal entries are **templates for review by an accountant, not accounting or tax advice.**
 
 - Cleared payouts: debit *Payouts payable*, credit *USDC wallet (Arc)*. Cleared receipts: debit *USDC wallet (Arc)*, credit *Receivables (USDC invoices)*. Exceptions: the wallet side stays true to the chain and the other side goes to *Suspense* until resolved.
+- The templates assume the obligation was booked when it arose: the payable when the payout was approved, the receivable when the invoice was issued. If your books recognise revenue or expense on settlement instead, map `payable`/`receivable` in `ChartOfAccounts` to the expense and revenue accounts.
+- Native USDC amounts are floored to 6 decimals; dust below one millionth can appear as ±0.000001 in the roll-forward. The exact 18-decimal figure is kept on each native observation.
+- Neither the Xero nor the QuickBooks file has been imported into a live organisation yet; both follow the vendors' published import layouts and are labelled as templates for that reason.
 - Network fees are paid in USDC and booked as a USD expense, once per day, because individual fees are fractions of a cent.
 - Account codes and names are configurable (`ChartOfAccounts`).
 - The Xero export follows the "Import manual journals" layout (`*Narration, *Date, Description, *AccountCode, *TaxRate, *Amount, TrackingName1, TrackingOption1`; positive amounts are debits, negative are credits), includes USDC lines only, and rounds each line's magnitude half-up to cents so debits and credits stay equal. Xero does not accept bank accounts or system accounts (AP/AR) in manual journals: set the USDC wallet up as a **Current Asset**, *Payouts payable* as a **Current Liability** and *Receivables (USDC invoices)* as a **Current Asset**, then map their codes.
