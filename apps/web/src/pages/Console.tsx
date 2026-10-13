@@ -300,8 +300,9 @@ export default function Console({
         {ledgers.length > 0 && (
           <div className="md:col-span-12 flex flex-wrap gap-2 text-sm">
             {ledgers.map((l) => (
-              <span key={l.PmtInfId} className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-slate-700">
-                <span className="font-medium text-slate-900">{l.PmtInfId}</span> · {l.instructions.length} entries
+              <span key={l.PmtInfId} className="inline-flex max-w-full flex-wrap items-center gap-x-2 rounded-2xl bg-slate-100 px-3 py-1 text-slate-700">
+                <span className="font-medium whitespace-nowrap text-slate-900">{l.PmtInfId}</span>
+                <span className="whitespace-nowrap">· {l.instructions.length} entries</span>
                 {l.description ? <span className="text-slate-500">· {l.description}</span> : null}
               </span>
             ))}
@@ -573,6 +574,14 @@ function Results({
         <Notice>
           {report.ignoredIncoming.count} incoming transfer{report.ignoredIncoming.count === 1 ? "" : "s"} ({fromUnits(report.ignoredIncoming.units)} USDC) left out because this ledger has no receivables.
           Add entries with <code className="font-mono text-xs">direction: "in"</code> to reconcile money coming in as well.
+        </Notice>
+      )}
+
+      {report.danglingReferences.length > 0 && (
+        <Notice tone="warn">
+          {report.danglingReferences.length} trusted reference{report.danglingReferences.length === 1 ? "" : "s"} could not be used:{" "}
+          {report.danglingReferences.map((d) => `${d.EndToEndId} (${d.reason === "unknown_id" ? "no such entry in the ledger" : "its transaction is outside the scanned range"})`).join("; ")}.
+          Widen the range or load the ledger that contains those entries.
         </Notice>
       )}
 

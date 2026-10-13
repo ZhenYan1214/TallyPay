@@ -23,11 +23,11 @@ export function navigate(route: Route, query?: string) {
   window.location.hash = query ? `${path}?${query}` : path;
 }
 
-const NAV: Array<{ route: Route; label: string }> = [
-  { route: "overview", label: "Overview" },
-  { route: "console", label: "Reconcile" },
-  { route: "verify", label: "Verify" },
-  { route: "pay", label: "Pay a run" },
+const NAV: Array<{ route: Route; label: string; short: string }> = [
+  { route: "overview", label: "Overview", short: "Home" },
+  { route: "console", label: "Reconcile", short: "Reconcile" },
+  { route: "verify", label: "Verify", short: "Verify" },
+  { route: "pay", label: "Pay a run", short: "Pay" },
 ];
 
 export default function App() {
@@ -47,20 +47,21 @@ export default function App() {
   return (
     <div className="flex min-h-screen flex-col">
       <header className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-4 py-3">
-          <button onClick={() => navigate("overview")} className="flex items-center gap-2">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-3 px-4 py-3">
+          <button onClick={() => navigate("overview")} className="flex shrink-0 items-center gap-2">
             <img src="./favicon.svg" alt="" className="h-7 w-7" />
             <span className="text-lg font-semibold tracking-tight">Tieout</span>
-            <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 sm:inline">for Arc</span>
+            <span className="hidden rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 md:inline">for Arc</span>
           </button>
-          <nav className="flex gap-1 text-sm">
+          <nav className="flex gap-0.5 overflow-x-auto text-sm whitespace-nowrap sm:gap-1">
             {NAV.map((n) => (
               <button
                 key={n.route}
                 onClick={() => navigate(n.route)}
-                className={`rounded-lg px-2.5 py-1.5 font-medium transition sm:px-3 ${route === n.route ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
+                className={`rounded-lg px-2 py-1.5 font-medium transition sm:px-3 ${route === n.route ? "bg-slate-900 text-white" : "text-slate-600 hover:bg-slate-100"}`}
               >
-                {n.label}
+                <span className="sm:hidden">{n.short}</span>
+                <span className="hidden sm:inline">{n.label}</span>
               </button>
             ))}
           </nav>
