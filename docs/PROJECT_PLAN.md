@@ -2,7 +2,7 @@
 
 > Arc 上的對帳層：讓 Arc 上的 USDC 金流，自動對到帳本、抓出異常、變成會計分錄。
 >
-> 最後更新：2026-10-13 · 狀態：測試網功能全部完成，第二輪模擬審查的修正已完成，等待主網部署
+> 最後更新：2026-10-13 · 狀態：測試網功能全部完成；第二、三輪審查修正完成（含市場與生態研究，見 `docs/RESEARCH.md`）；等待主網部署
 
 ---
 
@@ -187,6 +187,22 @@
 | 「投稿說明要寫什麼？」 | `docs/SUBMISSION.md`：表單欄位文字、90 秒影片腳本、投稿前檢查清單、常見質疑的回答 |
 | 「git 只有一個 commit？」 | 後續修改拆成有意義的 commit |
 
+### 3.7 第三輪：市場、Arc 生態與同類機制研究後的修正（2026-10-13）
+
+派了三個研究代理分別查 Circle Arc 現況與路線、穩定幣支付與對帳市場、其他鏈上已上線的同類機制，完整整理在 `docs/RESEARCH.md`。幾個改變做法的發現：
+
+| 發現 | 影響 | 改動 |
+|---|---|---|
+| Circle 自己把 Memo 定位為「穩定幣付款對帳」、「批次撥款」的原語，並說 ERP 是系統記錄；但 Circle 沒做「Memo 事件 → ERP 格式」這一段 | 定位可以直接用 Circle 的原話 | README、投稿稿改以 Circle 原話開場 |
+| 用錢包直接「Send」的原生 USDC 只發 EIP-7708 事件；demo 錢包一天 14 筆入帳裡 10 筆是原生轉帳，舊版完全看不到 | 審查員用 MetaMask 測一定踩到 | 讀取器同時讀 ERC-20 與系統事件並去重 |
+| 真實支付量 B2B 佔 58%；「這筆收款是哪張發票」是收款方的同一個問題 | 只做付款方太窄 | 引擎支援應收（`direction: "in"`）、請款連結、應收分錄 |
+| Coinbase Commerce 的冪等、交易所重複撥款事件 | 重複送出批次會付兩次 | 送出前查鏈上同 id 錨點；同批次重複收款人警告 |
+| FASB 要揭露約當現金組成；稽核要 roll-forward | 只列交易不夠 | 期初 + 收入 − 支出 − 手續費 = 期末，對鏈上餘額驗證 |
+| Circle Mint 用 camt.053；QuickBooks 吃 CSV 但沒有加密功能 | 匯出格式要對準既有系統 | 新增 camt.054 XML、QBO 分錄 CSV |
+| 公開 RPC 對突發請求回 429 | 掃描可能失敗 | 每段最多兩個請求並行 |
+| Ledgerline 等開源工具已在 Arc 主網投同一個 microgrant，但都停在收據、不產分錄 | 差異化要放在會計輸出與雙向對帳 | 投稿稿與 README 的比較表 |
+| Memo 合約主網部署狀態文件未寫明 | 若主網沒有，demo 會失敗 | 用 `eth_getCode` 確認主網兩個合約都在，且已有人使用 |
+
 ---
 
 ## 4. 最終定位
@@ -224,15 +240,16 @@
 
 ## 5. 功能設計
 
-### 5.1 五個步驟
+### 5.1 六個步驟
 
 | 步驟 | 做什麼 | 用到的 Arc 功能 |
 |---|---|---|
 | **① 標記** | 每筆付款附上 ISO 20022 格式的 Memo | `Memo` 合約 |
 | **② 批次與錨定** | 一筆交易付完整批；第一個呼叫錨定帳本雜湊 | `Multicall3From` |
 | **③ 對帳** | 讀取錢包活動，跟帳本比對 | 公開 RPC、事件紀錄 |
-| **④ 查驗** | 只憑 `EndToEndId` 在鏈上找到付款，並驗證 memo 屬於那筆轉帳 | `Memo` 事件的 indexed `memoId`、`callDataHash` |
-| **⑤ 入帳** | 產生複式分錄，匯出 CSV、Xero 格式 | USDC gas（手續費是美元費用） |
+| **④ 請款** | 收款方產生付款請求連結，付款方打開即預填，memo 帶上收款方的發票號 | `Memo`（由付款方的 EOA 發出） |
+| **⑤ 查驗** | 只憑 `EndToEndId` 在鏈上找到付款，並驗證 memo 屬於那筆轉帳 | `Memo` 事件的 indexed `memoId`、`callDataHash` |
+| **⑥ 入帳** | 產生複式分錄與餘額滾算，匯出 CSV、Xero、QuickBooks、camt.054 | USDC gas（手續費是美元費用）、歷史 `balanceOf` |
 
 ### 5.2 六種對帳狀態
 
@@ -243,7 +260,9 @@
 | `mismatch` 不符 | Memo 指向某筆帳，但細節不同 | 借：暫記款 / 貸：USDC 錢包 |
 | `missing` 未付款 | 帳本有，鏈上沒有 | 不入帳 |
 | `duplicate` 重複 | 同一筆付了兩次 | 借：暫記款 |
-| `unexpected` 不明支出 | 鏈上有，帳本沒有 | 借：暫記款 |
+| `unexpected` 不明支出 / 不明收入 | 鏈上有，帳本沒有（兩個方向都會抓） | 支出：借暫記款；收入：貸暫記款 |
+
+每一筆都標示方向（money out / money in）。應收（`direction: "in"`）對上時：借 USDC 錢包、貸應收帳款。短付、超付會標出精確差額。另外有兩個整體檢查：錨點驗證（5.3）與餘額滾算（期初 + 收入 − 支出 − 手續費 = 鏈上期末，差額就是掃描沒解釋到的錢）。
 
 ### 5.3 錨點驗證
 
@@ -279,12 +298,12 @@ tp1-run:{"PmtInfId":"PB-202610-ELLE","NbOfTxs":10,"CtrlSum":"1.367","LedgerHash"
 ```
 Circle_arc/
 ├── packages/
-│   ├── sdk/        @tallypay/sdk    網路設定、ABI、Memo 編解碼、帳本雜湊、批次組裝、鏈上讀取、memoId 查詢、掃描快照
-│   └── recon/      @tallypay/recon  對帳引擎、錨點驗證、分錄產生、CSV/Xero 匯出
+│   ├── sdk/        @tallypay/sdk    網路設定、ABI、Memo 編解碼、帳本雜湊、批次組裝、鏈上讀取（ERC-20 + EIP-7708）、memoId 查詢、掃描快照
+│   └── recon/      @tallypay/recon  對帳引擎（雙向、差額、餘額滾算）、錨點驗證、分錄產生、CSV / Xero / QBO / camt.054 匯出
 ├── apps/
-│   └── web/        @tallypay/web    純前端網站：Overview、Reconcile、Verify、Pay a run
+│   └── web/        @tallypay/web    純前端網站：Overview、Reconcile、Verify、Pay a run、Request a payment
 ├── scripts/                         命令列工具：技術驗證、示範情境、對帳、gas 報告、快照、回收、測試錢包
-├── docs/                            本規劃書、Memo 規格書（MEMO_SPEC.md）、投稿稿（SUBMISSION.md）
+├── docs/                            本規劃書、Memo 規格書（MEMO_SPEC.md）、投稿稿（SUBMISSION.md）、研究筆記（RESEARCH.md）
 └── .github/workflows/pages.yml      推上 GitHub 自動測試、建置、部署
 ```
 
@@ -324,7 +343,7 @@ ReconReport { items, anchors, summary }
 | 語言 | TypeScript | 前後端共用 SDK |
 | 鏈互動 | viem | 型別安全、輕量 |
 | 前端 | Vite + React + Tailwind v4 | 靜態網站，可部署在任何地方 |
-| 測試 | Vitest 5 | 21 個單元測試；`npm audit` 0 個漏洞 |
+| 測試 | Vitest 5 | 29 個單元測試；`npm audit` 0 個漏洞 |
 | 命令列 | tsx | 直接執行 TypeScript |
 | 部署 | GitHub Pages + Actions | 只需要 GitHub 帳號 |
 | 授權 | Apache-2.0 | — |
@@ -346,6 +365,10 @@ ReconReport { items, anchors, summary }
 | Memo 為什麼用 JSON 不用 ABI 編碼？ | **JSON** | 瀏覽器和稽核檔案直接可讀、不需工具解碼、欄位名一對一對應 ISO 20022；實測成本差異很小，規格書保留 `tp2:` 前綴給二進位版本 |
 | 錨點為什麼包一筆 0 元自轉帳？ | **必要的載體** | `Memo` 一定要包一個內部呼叫；`transfer(payer, 0)` 是最便宜又無害的，讀取端會過濾掉 |
 | RPC 掛掉怎麼辦？ | **快照備援** | demo 附帶同一區塊範圍的掃描快照；即時掃描失敗才用，畫面明確標示 |
+| 原生 USDC 轉帳看不到怎麼辦？ | **同時讀 EIP-7708 系統事件** | 同一筆交易若有 ERC-20 事件就丟掉系統事件，否則視為原生轉帳並標示 |
+| 收款方要不要做？ | **要** | B2B 是最大一塊；同一個引擎加 `direction: "in"`；請款連結讓付款方的 memo 帶上收款方的發票號 |
+| 怎麼防重複付款？ | **錨點當冪等鍵** | 送出前用 `runAnchorMemoId(PmtInfId)` 查鏈上；同錢包已錨定就拒送 |
+| 怎麼證明沒漏掉錢？ | **餘額滾算** | 公開 RPC 有歷史 `balanceOf`；期初 + 收入 − 支出 − 手續費 必須等於期末 |
 | 介面語言 | **英文** | 評審是 Circle 國際團隊；README 附中文簡介 |
 
 ---
@@ -366,6 +389,10 @@ ReconReport { items, anchors, summary }
 | 原生 USDC 18 位小數、ERC-20 介面 6 位小數，同一筆餘額 | 一律用 ERC-20 介面，以 6 位小數記帳 |
 | Memo 只接受 EOA 直接呼叫 | 智能合約錢包要靠意圖比對 |
 | 批次裡一筆帶 Memo 的付款（含攤提的錨點）約 64,000 gas；單獨一筆純轉帳約 74,000 gas | Memo 不是成本重點，批次攤掉基本費才是；一筆帶 Memo 的付款比純轉帳便宜 13% |
+| 原生 USDC 轉帳（錢包的 Send）只發系統位址 `0xffff…fffe` 的 Transfer 事件，不經過 `0x3600` 合約 | 只讀代幣合約事件會漏掉所有錢包直接轉帳；demo 錢包一天 14 筆入帳裡 10 筆是這種 |
+| 公開 RPC 支援歷史 `balanceOf`（指定區塊） | 不需要 archive node 就能做餘額滾算 |
+| 公開 RPC 對突發並行請求回 HTTP 429 | 每段最多兩個請求並行 |
+| 主網 `0x5294…e505`（Memo）與 `0x522f…47D0`（Multicall3From）都有程式碼，最近 9000 個區塊已有 Memo 事件 | 文件還寫 testnet，但主網可用 |
 
 ---
 
@@ -395,12 +422,15 @@ ReconReport { items, anchors, summary }
 | SDK：Memo 編解碼、帳本雜湊、批次組裝、鏈上讀取 | ✅ |
 | 對帳引擎：六種狀態 + 錨點驗證（精準指出被改的項目） | ✅ |
 | 會計輸出：複式分錄、通用 CSV、Xero 匯入檔 | ✅ |
-| 網站：Overview、Reconcile、Verify、Pay a run | ✅ |
+| 網站：Overview、Reconcile、Verify、Pay a run、Request a payment | ✅ |
+| 雙向對帳：應收、原生轉帳、短付超付差額、餘額滾算 | ✅（測試網實測：滾算差額 0） |
+| 重複付款防呆：錨點冪等查詢、批次內重複警告 | ✅ |
+| 匯出：Xero、QuickBooks、camt.054 XML | ✅ |
 | Reconcile：首頁一鍵自動執行 demo、情境導覽面板、RPC 失敗時改用快照 | ✅ |
 | Verify：憑 `EndToEndId` 查鏈上 memo，`callDataHash` 連結到轉帳 | ✅（測試網實測） |
 | 命令列：技術驗證、示範情境、對帳、gas 報告、快照、資金回收、測試錢包 | ✅ |
-| 單元測試 21 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + build | ✅ 全部通過 |
-| README（英文 + 中文簡介）、Memo 規格書、投稿稿、Apache-2.0 授權 | ✅ |
+| 單元測試 29 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + build | ✅ 全部通過 |
+| README（英文 + 中文簡介）、Memo 規格書、投稿稿、研究筆記、Apache-2.0 授權 | ✅ |
 | GitHub Pages 自動部署流程 | ✅（尚未推送） |
 
 ### 10.2 測試網驗證紀錄
@@ -445,6 +475,8 @@ ReconReport { items, anchors, summary }
 ### 11.1 測試網
 
 - [x] 第二輪模擬審查的修正（見 3.6）
+- [x] 第三輪研究後的修正（見 3.7）
+- [ ] 測試網 demo 重跑一次，讓 demo 資料包含三個收款情境（需要測試網私鑰；主網跑的時候會自然包含）
 - [x] 投稿說明與展示影片腳本（`docs/SUBMISSION.md`）
 - [ ] EURC 付款與匯率入帳（延後，不影響評分）
 - [ ] 手機版面檢查（延後）
@@ -488,6 +520,9 @@ ReconReport { items, anchors, summary }
 | Xero 限制 | 手動分錄不能用銀行科目和系統應付科目 | 文件說明科目設定方式 |
 | 大廠競爭 | Bitwave、Request 可能支援 Arc | 專注 Arc、中小企業、開源 |
 | Memo 標準分裂 | Circle 可能推出官方格式 | 定位成提案，SDK 可切換 |
+| 公開 RPC 限流 | 突發請求回 429 | 每段最多兩個請求並行；快照備援 |
+| 同名 | 孟加拉有 TallyPay 支付品牌、美國有 Tally 信用卡 app | 不影響資格；是否改名由使用者決定 |
+| 同賽道的開源工具 | Ledgerline 等已在主網，但不產分錄 | 差異化放在會計輸出、雙向對帳、不用自訂合約 |
 
 ---
 
@@ -495,7 +530,8 @@ ReconReport { items, anchors, summary }
 
 | 階段 | 內容 |
 |---|---|
-| 短期 | Xero、QuickBooks 直接 API 同步（OAuth）；EURC 與在地穩定幣的匯率紀錄 |
+| 短期 | 接 Arc 上付款業者的 webhook；Xero、QuickBooks 直接 API 同步（OAuth）；EURC 與在地穩定幣的匯率紀錄 |
+| 短期 | `tp1.1`：加鹽 memoId 變體、退款參考 `RtrRef`、分期 `InstlmtNb` |
 | 中期 | 接收 Arc 上付款業者（Noah、Cycles 等）的 webhook，自動對帳 |
 | 中期 | 接索引器，支援長時間範圍與多錢包 |
 | 長期 | Arc 隱私功能上線後，支援 view key 稽核：稽核人員可以驗證付款，帳本不必公開 |
