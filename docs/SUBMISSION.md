@@ -1,6 +1,6 @@
 # DoraHacks submission kit
 
-Everything needed for the Arc Microgrants form, ready to paste once the mainnet run is done. Replace every `TODO` first.
+Everything needed for the Arc Microgrants form. The full BUIDL page description, with figures, is in [DORAHACKS.md](DORAHACKS.md).
 
 ## Pre-flight (all must be true before submitting)
 
