@@ -7,6 +7,7 @@
 | **Live app** | _TODO: GitHub Pages URL_ |
 | **Mainnet demo run** | _TODO: explorer link to the PromptBazaar batch on Arc mainnet_ |
 | **Memo spec** | [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md), a proposal for an Arc-wide payment memo convention |
+| **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): evidence grades, trust boundaries, what is deliberately left out |
 | **Built on** | Arc's predeployed `Memo` and `Multicall3From`, both verified deployed on mainnet. No custom contracts, no backend, no keys on a server. |
 
 > USDC settles in under a second. Books still take weeks. Payment rails for stablecoins are crowded; what happens after the money lands is not.
@@ -39,17 +40,19 @@ Arc is unusually well suited to fix this: memos live in the same transaction as 
 | **Tag** | Each payment carries an ISO 20022-style memo (`EndToEndId`, `PmtInfId`, `Purp`, `CdtrRef`) through Arc's predeployed `Memo` contract. |
 | **Batch and anchor** | A payout run is one transaction through Arc's `Multicall3From`. Its first call anchors a hash of the ledger (`NbOfTxs`, `CtrlSum`, `LedgerHash`), so edits made after payment are detectable. The anchor is also the run's idempotency key: a run that was already anchored by this wallet is refused before it can pay anyone twice. |
 | **Request** | A payee builds a payment request link carrying its invoice id. The payer opens it, the memo carries the id, and the receipt matches the invoice without anyone exchanging a transaction hash. |
-| **Reconcile** | Reads the wallet's activity from any public Arc RPC, in both directions, including native USDC sends that only appear in Arc's EIP-7708 system log. Matches by memo when present, by counterparty, token and amount when the sender used a Safe, an MPC wallet or a plain wallet send. |
+| **Reconcile** | Reads the wallet's activity from any public Arc RPC, in both directions, including native USDC sends that only appear in Arc's EIP-7708 system log. Matches with three grades of evidence: the memo in the transaction, a reference published afterwards, or counterparty + token + amount when the pairing is unique. Ambiguous pairings are held for a person, never guessed. Several ledgers (a month of payout runs plus the invoices) reconcile in one pass; the range can be given as dates. |
+| **Attest** | For payments a Safe, custodian or plain wallet send made without a memo, any trusted EOA can publish an on-chain reference afterwards. It names the transaction and the EndToEndId and shares the payment's memoId, so from then on the payment is findable by id and reconciles as first-class evidence. |
 | **Verify** | Finds any payment from its `EndToEndId` alone via the indexed `memoId` topic, and proves the memo belongs to that exact transfer through `callDataHash`. |
-| **Book** | Matched payouts and receipts become balanced journal entries; exceptions go to suspense; the wallet balance is rolled forward against the chain. Exports: review CSV, generic journal CSV, Xero manual-journal import, QuickBooks Online journal import, ISO 20022 camt.054 XML. |
+| **Book** | Matched payouts and receipts become balanced journal entries; exceptions go to suspense; the wallet balance is rolled forward against the chain. Exports: audit bundle (ledgers + chain scan + every decision, re-runnable by anyone), review CSV, generic journal CSV, Xero manual-journal import, QuickBooks Online journal import, ISO 20022 camt.054 XML. |
 
 Every ledger entry and every transfer ends up in exactly one bucket:
 
 | Status | Meaning |
 |---|---|
-| `matched` | Memo, counterparty, amount, token and direction agree with the ledger. |
-| `matched_by_intent` | No memo, but counterparty, token and amount match an open entry. |
-| `mismatch` | The memo points to an entry, but the details differ. Short- and over-payments show the exact difference. |
+| `matched` | Memo or trusted reference, counterparty, amount, token and direction agree with the ledger. |
+| `matched_by_intent` | No memo, but counterparty, token and amount match exactly one open entry, and that entry fits no other transfer. |
+| `mismatch` | The memo or reference points to an entry, but the details differ. Short- and over-payments show the exact difference. |
+| `ambiguous` | No memo and more than one way to pair. Candidates are listed, money is held in suspense, nothing is guessed. |
 | `missing` | The ledger expects a payment or receipt that never happened. |
 | `duplicate` | The same entry was settled twice. |
 | `unexpected` | Money moved with no ledger entry, in either direction. |
@@ -64,6 +67,7 @@ PromptBazaar is a fictional AI-prompt marketplace paying 12 sellers in 12 countr
 |---|---|---|
 | 10 sellers | Paid in one batch with memos and an anchor | `matched` |
 | Seller 07 | Paid by a plain ERC-20 transfer with no memo, as a Safe would | `matched_by_intent` |
+| Seller 11 | Paid the same way, then the operations wallet published an on-chain reference for that transaction | `matched`, evidence `reference` |
 | Seller 12 | On hold, never paid | `missing` |
 | Seller 04 | Amount edited in the ledger after payment | `mismatch`, and the anchor pinpoints the edit |
 | (none) | Treasury sends funds to an address the ledger doesn't know | `unexpected` (out) |
@@ -71,7 +75,7 @@ PromptBazaar is a fictional AI-prompt marketplace paying 12 sellers in 12 countr
 | Seller 05 | Invoiced, has not paid | `missing` (in) |
 | Seller 03 | Sends a tip with a plain wallet send: native USDC, no memo, no invoice | `unexpected` (in), flagged as a native send |
 
-The app shows this table next to the results, with a link to the real transaction behind each case. (The three money-in cases were added to the scenario script after the testnet run shown in the repo; they appear once the demo is run again, which the mainnet run does.)
+The app shows this table next to the results, with a link to the real transaction behind each case. (The reference case and the three money-in cases were added to the scenario script after the testnet run shown in the repo; they appear once the demo is run again, which the mainnet run does.)
 
 ## What it costs on Arc
 
@@ -107,6 +111,16 @@ This is a proposal, not an official Arc standard. If Arc publishes a canonical m
 ## How a memo is tied to its transfer
 
 Inside a batch, each `Memo` event records `callDataHash = keccak256(data)` of the call it wrapped. Tieout recomputes `keccak256(transfer(to, value))` for every observed USDC `Transfer` and links it to the memo in the same transaction with the same target and hash. This works for any number of payments per transaction, and it is what the Verify page shows on screen. Finding a memo is not validating a payment: the reconciler still checks counterparty, token, amount and direction, and settles each id at most once.
+
+## Three grades of evidence
+
+| Grade | Link | Produced by |
+|---|---|---|
+| **memo** | `Memo` event in the same transaction, bound by `callDataHash` | The payer, when paying (EOA only on Arc) |
+| **reference** | `tp1-ref` memo published later by a trusted EOA, naming the transaction and the EndToEndId | Whoever the ledger owner trusts: an ops wallet attesting a Safe's payouts, a custodian's signer, the payee |
+| **intent** | Counterparty, token and amount agree and the pairing is unique both ways | Inferred; weakest, and the only grade that can be `ambiguous` |
+
+The reconciler always tries the stronger grade first, labels every settled item with the grade that settled it, and the Reconcile page offers to publish references for anything that only matched by intent. Arc's `Memo` is EOA-only; references are how payments from Safes, custodians and exchanges get the same evidence as payments from an EOA. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## Precedents on other chains
 
@@ -150,7 +164,9 @@ Tieout doesn't move money for you. It reconciles whatever wallet you point it at
 
 **Why a zero-value self-transfer for the anchor?** `Memo` needs an inner call to wrap. A `transfer(payer, 0)` is the cheapest harmless one. It is filtered out of every report.
 
-**What about Safe and MPC wallets?** `Memo` is EOA-only on Arc today. Tieout falls back to matching on counterparty, token and amount, and labels those matches `matched_by_intent` so an accountant knows the evidence is weaker.
+**What about Safe and MPC wallets?** `Memo` is EOA-only on Arc today. Tieout first falls back to matching on counterparty, token and amount, labelled `matched_by_intent` so an accountant knows the evidence is weaker, and refuses to guess when the pairing is not unique. Then any trusted EOA can publish on-chain references for those payments, after which they reconcile as `matched` and are findable by id. Arc's docs suggest exactly this "separate EOA-signed memo transaction" as the workaround; Tieout gives it a schema and a button.
+
+**Why can't it just pick the oldest candidate when two pairings are possible?** Because an accountant would then be signing off on a guess. Modern Treasury, the best-documented commercial matcher, routes multiple candidates to manual review; so does Tieout. The held money sits in suspense and the roll-forward still ties.
 
 **Why does the anchor only cover its own transaction?** Runs get split: some entries are held back, some are paid separately. The anchor commits to what was actually paid in that transaction, recovered from the memos in it, so a held entry does not produce a false "ledger tampered" alarm.
 
@@ -182,7 +198,7 @@ docs/                             memo spec, submission kit, research notes (zh-
 
 - **No backend and no keys on a server.** The web app reads Arc directly from the browser. Payouts are signed by the user's own wallet (EIP-1193).
 - **No custom contracts.** Payments go through Arc's predeployed `Memo` (`0x5294…e505`) and `Multicall3From` (`0x522f…47D0`).
-- 29 unit tests cover the memo codec, batching, memo-to-transfer linking, snapshots, reconciliation in both directions, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
+- 38 unit tests cover the memo codec, batching, reference memos, memo-to-transfer linking, snapshots, reconciliation in both directions with all three evidence grades, ambiguity, variance, roll-forward, journals and every export. CI runs typecheck, tests and the production build on every push.
 
 ## Run it
 
@@ -244,7 +260,7 @@ Journal entries are **templates for review by an accountant, not accounting or t
 ## Limitations
 
 - Arc's `Memo` requires an EOA caller. Smart-contract wallets fall back to intent matching, which is weaker when several open entries share the same counterparty and amount; the reconciler leaves ambiguous cases unmatched rather than guessing.
-- Intent matching pairs entries with transfers oldest-first; it does not yet use invoice due dates, amount tolerances or instalments.
+- Intent matching only settles unique pairings; it does not yet use invoice due dates, amount tolerances or instalments, so a run with several identical payouts to one address needs memos or references to resolve.
 - EURC is supported by the SDK and the reconciler, but journal export needs a recorded FX rate before EURC lines can be booked in a USD ledger.
 - Browser scans are limited to 200,000 blocks per run. Longer periods need an indexer (Goldsky, The Graph and Envio support Arc).
 - Native USDC amounts below one millionth are floored; the exact 18-decimal figure is kept on the observation.
@@ -261,7 +277,7 @@ Journal entries are **templates for review by an accountant, not accounting or t
 
 ## License
 
-Apache-2.0. Tieout is an independent open-source project built on Arc and is not affiliated with Circle.
+Apache-2.0. Tieout is an independent open-source project built on Arc and is not affiliated with Circle. "Tie-out" is what accountants call matching a balance to its source records.
 
 ---
 
@@ -271,6 +287,7 @@ Tieout 是 Arc 上的對帳層：把 Arc 上每一筆 USDC 付款與收款對到
 
 - 只用 Arc 原生的 `Memo` 與 `Multicall3From`（主網已確認部署），沒有自訂合約、沒有後端、不保管任何私鑰
 - 付出去與收進來都對：應付（付款批次）與應收（發票）同一個引擎；請款連結讓付款方的 Memo 自動帶上你的發票號
+- 三種證據等級：交易裡的 Memo、事後由受信任的 EOA 發布的參考（解決 Safe、託管、交易所付款沒有 Memo 的問題）、唯一配對的意圖比對；配不唯一就標 ambiguous 交給人，絕不猜
 - 同時讀 ERC-20 事件與 EIP-7708 系統事件，所以用 MetaMask 直接「Send」的原生 USDC 也看得到
 - Memo 欄位採用 ISO 20022 命名，只放識別碼；格式規格見 `docs/MEMO_SPEC.md`；可匯出 Xero、QuickBooks 與 camt.054
 - 帳本雜湊錨定在鏈上，事後竄改可精準抓出；錨點同時是批次的冪等鍵，重複送出的批次會被擋下

@@ -1,8 +1,8 @@
-# Tieout 專案規劃書
+# Tieout 專案規劃書（原名 Tallypay，2026-10-13 改名）
 
 > Arc 上的對帳層：讓 Arc 上的 USDC 金流，自動對到帳本、抓出異常、變成會計分錄。
 >
-> 最後更新：2026-10-13 · 狀態：測試網功能全部完成；第二、三輪審查修正完成（含市場與生態研究，見 `docs/RESEARCH.md`）；等待主網部署
+> 最後更新：2026-10-13 · 狀態：專案已改名 Tieout；測試網功能全部完成；第二、三、四輪審查修正完成（研究見 `docs/RESEARCH.md`，架構見 `docs/ARCHITECTURE.md`）；等待主網部署
 
 ---
 
@@ -203,6 +203,22 @@
 | Ledgerline 等開源工具已在 Arc 主網投同一個 microgrant，但都停在收據、不產分錄 | 差異化要放在會計輸出與雙向對帳 | 投稿稿與 README 的比較表 |
 | Memo 合約主網部署狀態文件未寫明 | 若主網沒有，demo 會失敗 | 用 `eth_getCode` 確認主網兩個合約都在，且已有人使用 |
 
+### 3.8 第四輪：架構層的設計缺口（2026-10-13）
+
+目標從「審查員會不會喜歡」變成「這個設計在真實世界站不站得住」。逐一處理的問題：
+
+| 設計問題 | 為什麼站不住 | 解法 | 先例 |
+|---|---|---|---|
+| Safe、託管、交易所付的款永遠只有「意圖比對」這種弱證據 | 企業大多用 Safe/MPC；Memo 只收 EOA，等於主流付款方拿不到好證據 | **事後參考（`tp1-ref`）**：任何受信任的 EOA 事後發一個 memo，指名交易雜湊與 EndToEndId，共用同一個 memoId；對帳引擎第二輪讀取，Verify 查得到，Reconcile 頁一鍵發布 | Arc 文件自己建議的「另一筆 EOA 簽的 memo 交易」；XRPL source/destination tag |
+| 意圖比對「先到先配」會猜錯 | 同收款人同金額兩筆，猜錯等於會計師簽了一個猜測 | 配對必須雙向唯一，否則標 `ambiguous`，列出候選，錢留在暫記款 | Modern Treasury 多候選進人工；Solana Pay CVE-2022-35917 |
+| 會計師想的是日期不是區塊 | 要查區塊號才能用 | 日期區間 → 二分搜尋區塊號 | — |
+| 一個月有好幾個付款批次加發票 | 一次只能載一個檔 | 多帳本一次對帳 | — |
+| 結果只在畫面上，審計無法重現 | 稽核要可重跑的證據 | 稽核包 JSON：帳本 + 鏈上掃描 + 每個決定；任何人用公開 RPC 可重跑 | camt 對帳檔、beancount 匯入紀錄 |
+| 請款連結永久有效 | 幾個月後的舊連結還能付 | 連結可帶到期時間，過期拒付 | Coinbase Commerce charge deadline |
+| 不用錨點時沒有冪等保護 | 關掉錨點就可能重複付 | 改用第一筆付款的 memoId 查 | — |
+| 文件缺架構說明 | 審查「技術可信度」要看信任邊界 | `docs/ARCHITECTURE.md`：三種證據等級、資料流、信任邊界、刻意不做的事、失敗模式 | — |
+| 名稱撞名 | 審查搜尋看到別人 | 改名 Tieout | — |
+
 ---
 
 ## 4. 最終定位
@@ -343,7 +359,7 @@ ReconReport { items, anchors, summary }
 | 語言 | TypeScript | 前後端共用 SDK |
 | 鏈互動 | viem | 型別安全、輕量 |
 | 前端 | Vite + React + Tailwind v4 | 靜態網站，可部署在任何地方 |
-| 測試 | Vitest 5 | 29 個單元測試；`npm audit` 0 個漏洞 |
+| 測試 | Vitest 5 | 38 個單元測試；`npm audit` 0 個漏洞 |
 | 命令列 | tsx | 直接執行 TypeScript |
 | 部署 | GitHub Pages + Actions | 只需要 GitHub 帳號 |
 | 授權 | Apache-2.0 | — |
@@ -369,6 +385,8 @@ ReconReport { items, anchors, summary }
 | 收款方要不要做？ | **要** | B2B 是最大一塊；同一個引擎加 `direction: "in"`；請款連結讓付款方的 memo 帶上收款方的發票號 |
 | 怎麼防重複付款？ | **錨點當冪等鍵** | 送出前用 `runAnchorMemoId(PmtInfId)` 查鏈上；同錢包已錨定就拒送 |
 | 怎麼證明沒漏掉錢？ | **餘額滾算** | 公開 RPC 有歷史 `balanceOf`；期初 + 收入 − 支出 − 手續費 必須等於期末 |
+| 沒有 Memo 的付款怎麼拿到強證據？ | **事後參考 `tp1-ref`** | 受信任的 EOA 事後發 memo 指名交易與 EndToEndId，共用 memoId；只信使用者指定的簽署者 |
+| 配對不唯一怎麼辦？ | **標 ambiguous，不猜** | 候選列出、錢留暫記款、滾算照樣平 |
 | 介面語言 | **英文** | 評審是 Circle 國際團隊；README 附中文簡介 |
 
 ---
@@ -424,12 +442,14 @@ ReconReport { items, anchors, summary }
 | 會計輸出：複式分錄、通用 CSV、Xero 匯入檔 | ✅ |
 | 網站：Overview、Reconcile、Verify、Pay a run、Request a payment | ✅ |
 | 雙向對帳：應收、原生轉帳、短付超付差額、餘額滾算 | ✅（測試網實測：滾算差額 0） |
+| 三種證據等級、事後參考（發布 + 讀取 + Verify 顯示）、ambiguous 狀態 | ✅ |
+| 日期區間、多帳本、稽核包匯出、請款連結到期 | ✅ |
 | 重複付款防呆：錨點冪等查詢、批次內重複警告 | ✅ |
 | 匯出：Xero、QuickBooks、camt.054 XML | ✅ |
 | Reconcile：首頁一鍵自動執行 demo、情境導覽面板、RPC 失敗時改用快照 | ✅ |
 | Verify：憑 `EndToEndId` 查鏈上 memo，`callDataHash` 連結到轉帳 | ✅（測試網實測） |
 | 命令列：技術驗證、示範情境、對帳、gas 報告、快照、資金回收、測試錢包 | ✅ |
-| 單元測試 29 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + build | ✅ 全部通過 |
+| 單元測試 38 個；`npm audit` 0 個漏洞；CI 跑 typecheck + test + build | ✅ 全部通過 |
 | README（英文 + 中文簡介）、Memo 規格書、投稿稿、研究筆記、Apache-2.0 授權 | ✅ |
 | GitHub Pages 自動部署流程 | ✅（尚未推送） |
 
@@ -521,7 +541,7 @@ ReconReport { items, anchors, summary }
 | 大廠競爭 | Bitwave、Request 可能支援 Arc | 專注 Arc、中小企業、開源 |
 | Memo 標準分裂 | Circle 可能推出官方格式 | 定位成提案，SDK 可切換 |
 | 公開 RPC 限流 | 突發請求回 429 | 每段最多兩個請求並行；快照備援 |
-| 同名 | 孟加拉有 TallyPay 支付品牌、美國有 Tally 信用卡 app | 不影響資格；是否改名由使用者決定 |
+| 同名 | 原名撞孟加拉 TallyPay 支付品牌 | 已改名 Tieout（2026-10-13） |
 | 同賽道的開源工具 | Ledgerline 等已在主網，但不產分錄 | 差異化放在會計輸出、雙向對帳、不用自訂合約 |
 
 ---

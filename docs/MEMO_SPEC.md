@@ -78,11 +78,30 @@ The anchor commits to the ledger **as it was when the money moved**. If someone 
 
 The anchor is also the run's **idempotency key**. Before sending, a client looks up `runAnchorMemoId(PmtInfId)` on-chain; if this wallet already anchored that run, it refuses to send again. A double-submitted payroll approval therefore cannot pay everyone twice, which is the failure mode behind several well-publicised exchange and payroll incidents.
 
+## 4a. Reference memo
+
+A reference attaches an `EndToEndId` to a transfer that could not carry a memo itself: one sent from a Safe or ERC-4337 account (which `Memo` rejects), from a custodian or exchange, or by a plain wallet send. Any EOA publishes it later; it wraps a zero-value `transfer(signer, 0)` like the anchor does.
+
+```text
+tp1-ref:{"EndToEndId":"PB-202610-ELLE-S11","TxHash":"0x…","PmtInfId":"PB-202610-ELLE"}
+```
+
+| Key | Required | Meaning |
+|---|---|---|
+| `EndToEndId` | yes | The ledger entry being referenced. |
+| `TxHash` | yes | The transaction that carried the transfer, lower-case 32-byte hex. |
+| `PmtInfId` | no | The run the entry belongs to. |
+
+Its `memoId` is `paymentMemoId(EndToEndId)`, the same value a memo on the original payment would have carried, so a lookup by `EndToEndId` finds the reference and, through `TxHash`, the payment. The Memo event's `sender` is the attesting EOA; the transfer's `from` is still whoever paid. A reconciler must only believe references from signers the ledger owner trusts, and must still compare counterparty, token, amount and direction before settling. Several references may name one transaction (a Safe batch); the reconciler picks, per transfer, the reference whose entry fits.
+
+Arc's documentation names a "separate EOA-signed memo transaction" as the workaround for smart-contract wallets. This is that workaround with a schema, so every tool on the chain can read it.
+
 ## 5. memoId derivation
 
 ```text
-payment:  memoId = keccak256(utf8("tp1:" + EndToEndId))
-anchor:   memoId = keccak256(utf8("tp1-run:" + PmtInfId))
+payment:    memoId = keccak256(utf8("tp1:" + EndToEndId))
+reference:  memoId = keccak256(utf8("tp1:" + EndToEndId))   // same as the payment it references
+anchor:     memoId = keccak256(utf8("tp1-run:" + PmtInfId))
 ```
 
 `memoId` is an indexed topic of the `Memo` event. Anyone who knows an `EndToEndId` can run one topic-filtered `eth_getLogs` against the `Memo` contract and get the payment back, without knowing the transaction hash or the block. This is the lookup model of Solana Pay reference keys (`getSignaturesForAddress`) and Tempo's indexed `TransferWithMemo` memo, with a human-readable identifier behind the hash.

@@ -148,7 +148,7 @@
 
 ### 4.5 名稱
 
-「TallyPay」在孟加拉有同名的無現金支付品牌，美國有信用卡 app「Tally」，印度有會計軟體 Tally Solutions。審查時搜尋會看到別人，但不影響資格。要不要改名是你的決定；改名成本在投稿前還很低。
+原名「TallyPay」在孟加拉有同名的無現金支付品牌，美國有信用卡 app「Tally」，印度有會計軟體 Tally Solutions。已於 2026-10-13 改名為 **Tieout**：tie-out 是會計師把帳目對到憑證的行話，加密會計領域沒有撞名，首字母相同所以 logo 不用換。鏈上 memo 前綴 `tp1` 保留，定義為 tagged payment v1。
 
 ---
 
