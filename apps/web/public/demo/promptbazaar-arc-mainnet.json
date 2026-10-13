@@ -1,0 +1,173 @@
+{
+  "PmtInfId": "PB-202610-I7JR",
+  "network": "arc-mainnet",
+  "payer": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+  "createdAt": "2026-10-13T07:42:32.789Z",
+  "description": "PromptBazaar seller payouts and invoices (simulated marketplace, real Arc transactions)",
+  "instructions": [
+    {
+      "EndToEndId": "PB-202610-I7JR-S01",
+      "recipient": "0x6fD9C789690056b3738B5D275186D6Ab0E04441A",
+      "amount": "0.184",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S01",
+      "payeeName": "Aiko Tanaka",
+      "payeeCountry": "JP"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S02",
+      "recipient": "0xe1Eb351593a68E727f570F8E3e18c3E0d038FE12",
+      "amount": "0.097",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S02",
+      "payeeName": "Lucas Ferreira",
+      "payeeCountry": "BR"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S03",
+      "recipient": "0xd03d8BD69B7828823139977b058DcBC13E3cB74D",
+      "amount": "0.215",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S03",
+      "payeeName": "Amara Okafor",
+      "payeeCountry": "NG"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S04",
+      "recipient": "0xC2D899693D8e03001E3b2fb5A7a010356519E2F3",
+      "amount": "0.135",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S04",
+      "payeeName": "Priya Raman",
+      "payeeCountry": "IN"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S05",
+      "recipient": "0xC85Cf9eaB5f4F5EdAF55A6f3Cd65a3d94bb6C42B",
+      "amount": "0.062",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S05",
+      "payeeName": "Mateo Rojas",
+      "payeeCountry": "AR"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S06",
+      "recipient": "0x1A98189888eE32e1D76596580a22CBFb96432E3F",
+      "amount": "0.131",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S06",
+      "payeeName": "Lea Schmidt",
+      "payeeCountry": "DE"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S07",
+      "recipient": "0x210f1f0EfCab2134d3A797C9e6725f43202443f9",
+      "amount": "0.078",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S07",
+      "payeeName": "Minh Nguyen",
+      "payeeCountry": "VN"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S08",
+      "recipient": "0xB580682d2d240221E3661154e20450177F32D4eC",
+      "amount": "0.109",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S08",
+      "payeeName": "Sofia Petrova",
+      "payeeCountry": "BG"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S09",
+      "recipient": "0xE08099bd90Ff4167De07F71D5903B7F28285312F",
+      "amount": "0.243",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S09",
+      "payeeName": "Chen Wei-Ting",
+      "payeeCountry": "TW"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S10",
+      "recipient": "0x7eA133bAEd76843b38eE77C12E7B12Fa1Fb164EF",
+      "amount": "0.056",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S10",
+      "payeeName": "Omar Haddad",
+      "payeeCountry": "JO"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S11",
+      "recipient": "0x98b87d1121793E18A0FC24189a5722A707411E35",
+      "amount": "0.120",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S11",
+      "payeeName": "Grace Mensah",
+      "payeeCountry": "GH"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-S12",
+      "recipient": "0xf0c996Cea0255C53a8b19DCd011E18A2cbF37674",
+      "amount": "0.090",
+      "token": "USDC",
+      "Purp": "COMM",
+      "CdtrRef": "STMT-202610-S12",
+      "payeeName": "Daniel Kim",
+      "payeeCountry": "KR"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-INV-09",
+      "direction": "in",
+      "recipient": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+      "payer": "0xE08099bd90Ff4167De07F71D5903B7F28285312F",
+      "amount": "0.050",
+      "token": "USDC",
+      "Purp": "SUPP",
+      "CdtrRef": "INV-202610-09",
+      "payeeName": "Chen Wei-Ting (premium listing)",
+      "payeeCountry": "TW"
+    },
+    {
+      "EndToEndId": "PB-202610-I7JR-INV-05",
+      "direction": "in",
+      "recipient": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+      "payer": "0xC85Cf9eaB5f4F5EdAF55A6f3Cd65a3d94bb6C42B",
+      "amount": "0.020",
+      "token": "USDC",
+      "Purp": "SUPP",
+      "CdtrRef": "INV-202610-05",
+      "payeeName": "Mateo Rojas (premium listing)",
+      "payeeCountry": "AR"
+    }
+  ],
+  "execution": {
+    "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+    "blockNumber": "25718314"
+  },
+  "scenario": {
+    "batchTx": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+    "manualNoMemoTx": "0x09140a733ee74c8198bfb42664fa3dfc5547130142ac93562e00fbf0e24fea19",
+    "attestedTx": "0x4920d77f5001a6e941d98a74c83b15b6515b4905cac5b596d942153e746e133d",
+    "referenceTx": "0xb7e0b214e10048d94f09c10c616f2d2d0f7ae6c143766d501516d9bdc5d1de74",
+    "unrecordedTx": "0x4dafe415122c112b4fecba1eafd2554b7bfc4e8f9a1b1284ade30bad5bbe8da2",
+    "editedAfterRun": "PB-202610-I7JR-S04",
+    "onHold": "PB-202610-I7JR-S12",
+    "invoicePaidTx": "0x3e89f95b505a01855c26844d04070fdc2ae00ad4431b45a127710fdb8eff9467",
+    "invoiceOpen": "PB-202610-I7JR-INV-05",
+    "unrecordedIncomingTx": "0xd0a300d52820378dc564364211c436c5b3c60d969fa0707f5e0198e308fec518"
+  },
+  "scan": {
+    "fromBlock": "25718310",
+    "toBlock": "25718326"
+  }
+}

@@ -397,7 +397,7 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
   const s = ledger.scenario ?? {};
   const tx = (hash?: string) => (hash ? <ExternalLink href={txUrl(network, hash)} className="font-mono text-xs">{shortHash(hash)}</ExternalLink> : null);
   const rows: Array<{ what: string; expect: ReconStatus; link?: string; id?: string }> = [
-    { what: "Ten sellers paid in one batch, each with an ISO 20022 memo and a run anchor", expect: "matched", link: s.batchTx },
+    { what: "Sellers paid in one batch, each with an ISO 20022 memo and a run anchor", expect: "matched", link: s.batchTx },
     { what: "One seller paid by a plain transfer with no memo, as a Safe or MPC wallet would", expect: "matched_by_intent", link: s.manualNoMemoTx },
     ...(s.referenceTx
       ? [{ what: "One seller paid by a plain transfer, then the operations wallet published an on-chain reference for it", expect: "matched" as const, link: s.referenceTx }]
@@ -561,7 +561,9 @@ function Results({
                     <td className="py-1 text-right">{fromUnits(b.fees)}</td>
                     <td className="py-1 text-right">{fromUnits(b.expectedClosing)}</td>
                     <td className="py-1 text-right">{fromUnits(b.closing)}</td>
-                    <td className={`py-1 text-right font-medium ${b.unexplained === 0n ? "text-emerald-700" : "text-rose-700"}`}>{b.unexplained === 0n ? "0, fully explained" : fromUnits(b.unexplained)}</td>
+                    <td className={`py-1 text-right font-medium ${(b.unexplainedWei ?? b.unexplained) === 0n ? "text-emerald-700" : "text-rose-700"}`}>
+                      {(b.unexplainedWei ?? b.unexplained) === 0n ? "0, fully explained" : b.unexplainedWei !== undefined ? formatUnits(b.unexplainedWei, 18) : fromUnits(b.unexplained)}
+                    </td>
                   </tr>
                 ))}
               </tbody>

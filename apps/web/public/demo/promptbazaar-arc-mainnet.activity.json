@@ -1,0 +1,363 @@
+{
+  "version": 1,
+  "takenAt": "2026-10-13T07:45:42.250Z",
+  "activity": {
+    "network": "arc-mainnet",
+    "account": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+    "fromBlock": "25718310",
+    "toBlock": "25718326",
+    "transfers": [
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 11,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0x6fD9C789690056b3738B5D275186D6Ab0E04441A",
+        "amount": "184000",
+        "memo": {
+          "memoId": "0x80dc18c259f49e0a4374aabe71fb44a624bef4e1e67eff9878f4b4ae17b1870a",
+          "memoIndex": "1059",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S01",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S01"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 15,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0xe1Eb351593a68E727f570F8E3e18c3E0d038FE12",
+        "amount": "97000",
+        "memo": {
+          "memoId": "0x358b955b30a8d32c1ec03e6d41979c6cdda9528ba162b84cc9737f7280b8909d",
+          "memoIndex": "1060",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S02",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S02"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 19,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0xd03d8BD69B7828823139977b058DcBC13E3cB74D",
+        "amount": "215000",
+        "memo": {
+          "memoId": "0x1e09364368dc636586b0f41bb21cc5920cfb83f1b279046f0506984cf5c677fd",
+          "memoIndex": "1061",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S03",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S03"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 23,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0xC2D899693D8e03001E3b2fb5A7a010356519E2F3",
+        "amount": "150000",
+        "memo": {
+          "memoId": "0x77b8f6372109f6a4f910b94d8d90704759c1b88d5204a9f0447e9a467181e01f",
+          "memoIndex": "1062",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S04",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S04"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 27,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0xC85Cf9eaB5f4F5EdAF55A6f3Cd65a3d94bb6C42B",
+        "amount": "62000",
+        "memo": {
+          "memoId": "0xe03c9a8f68fb0c4046792f0f686e87d8a5debe8125fdb8afc04bb5e5ab1a8fcd",
+          "memoIndex": "1063",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S05",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S05"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 31,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0x1A98189888eE32e1D76596580a22CBFb96432E3F",
+        "amount": "131000",
+        "memo": {
+          "memoId": "0x3901d9666ba2f4aa8f783b71baf21c70bcd02e0031f6b035b16691c6598314de",
+          "memoIndex": "1064",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S06",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S06"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 35,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0xB580682d2d240221E3661154e20450177F32D4eC",
+        "amount": "109000",
+        "memo": {
+          "memoId": "0x1fb8be2218f9c3e3f4e0252dd82a2e583564d97480c179c165bf07e4d2f6329b",
+          "memoIndex": "1065",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S08",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S08"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 39,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0xE08099bd90Ff4167De07F71D5903B7F28285312F",
+        "amount": "243000",
+        "memo": {
+          "memoId": "0xd400257d7e9e71d0a6fddb61c7d596a19f3fdcbb48b864b3e50e3f1cb2ca48c5",
+          "memoIndex": "1066",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S09",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S09"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "logIndex": 43,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0x7eA133bAEd76843b38eE77C12E7B12Fa1Fb164EF",
+        "amount": "56000",
+        "memo": {
+          "memoId": "0xbf8745e582e45cf25b1e54eee78e610916ee933bc67a60d3fb7ba8e72645980a",
+          "memoIndex": "1067",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-S10",
+              "PmtInfId": "PB-202610-I7JR",
+              "Purp": "COMM",
+              "CdtrRef": "STMT-202610-S10"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0x09140a733ee74c8198bfb42664fa3dfc5547130142ac93562e00fbf0e24fea19",
+        "blockNumber": "25718316",
+        "timestamp": 1791877345,
+        "logIndex": 1,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0x210f1f0EfCab2134d3A797C9e6725f43202443f9",
+        "amount": "78000"
+      },
+      {
+        "txHash": "0x4920d77f5001a6e941d98a74c83b15b6515b4905cac5b596d942153e746e133d",
+        "blockNumber": "25718318",
+        "timestamp": 1791877346,
+        "logIndex": 1,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0x98b87d1121793E18A0FC24189a5722A707411E35",
+        "amount": "120000"
+      },
+      {
+        "txHash": "0x4dafe415122c112b4fecba1eafd2554b7bfc4e8f9a1b1284ade30bad5bbe8da2",
+        "blockNumber": "25718322",
+        "timestamp": 1791877348,
+        "logIndex": 2,
+        "token": "USDC",
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "to": "0x24081Ff2D22db7314576d719e099ae87424574F1",
+        "amount": "45000"
+      },
+      {
+        "txHash": "0x3e89f95b505a01855c26844d04070fdc2ae00ad4431b45a127710fdb8eff9467",
+        "blockNumber": "25718324",
+        "timestamp": 1791877349,
+        "logIndex": 6,
+        "token": "USDC",
+        "from": "0xE08099bd90Ff4167De07F71D5903B7F28285312F",
+        "to": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "amount": "50000",
+        "memo": {
+          "memoId": "0xe340cd4214a87d2c90c226fc0d5a8c1a2b1412d60ece2ae9ea1017641958b405",
+          "memoIndex": "1069",
+          "decoded": {
+            "kind": "payment",
+            "memo": {
+              "EndToEndId": "PB-202610-I7JR-INV-09",
+              "PmtInfId": "PB-202610-I7JR-INV",
+              "Purp": "SUPP",
+              "CdtrRef": "INV-202610-09"
+            }
+          }
+        }
+      },
+      {
+        "txHash": "0xd0a300d52820378dc564364211c436c5b3c60d969fa0707f5e0198e308fec518",
+        "blockNumber": "25718326",
+        "timestamp": 1791877351,
+        "logIndex": 4,
+        "token": "USDC",
+        "from": "0xd03d8BD69B7828823139977b058DcBC13E3cB74D",
+        "to": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "amount": "10000",
+        "amountWei": "10000000000000000",
+        "native": true
+      }
+    ],
+    "anchors": [
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "sender": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "anchor": {
+          "PmtInfId": "PB-202610-I7JR",
+          "NbOfTxs": 9,
+          "CtrlSum": "1.247",
+          "LedgerHash": "0xd03aaf19e48645c3b1a9918812b3fc01cdf05199691afcc88af44ce1c7ebc423"
+        }
+      }
+    ],
+    "references": [
+      {
+        "txHash": "0xb7e0b214e10048d94f09c10c616f2d2d0f7ae6c143766d501516d9bdc5d1de74",
+        "blockNumber": "25718320",
+        "timestamp": 1791877347,
+        "sender": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "memoId": "0x36518e3329b16c9911c09ff8619c6d02ed34281f3220c183ea040fcabb53f438",
+        "reference": {
+          "EndToEndId": "PB-202610-I7JR-S11",
+          "TxHash": "0x4920d77f5001a6e941d98a74c83b15b6515b4905cac5b596d942153e746e133d",
+          "PmtInfId": "PB-202610-I7JR"
+        }
+      }
+    ],
+    "fees": [
+      {
+        "txHash": "0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e",
+        "blockNumber": "25718314",
+        "timestamp": 1791877344,
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "feeWei": "12285084000000000"
+      },
+      {
+        "txHash": "0x09140a733ee74c8198bfb42664fa3dfc5547130142ac93562e00fbf0e24fea19",
+        "blockNumber": "25718316",
+        "timestamp": 1791877345,
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "feeWei": "1552950000000000"
+      },
+      {
+        "txHash": "0x4920d77f5001a6e941d98a74c83b15b6515b4905cac5b596d942153e746e133d",
+        "blockNumber": "25718318",
+        "timestamp": 1791877346,
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "feeWei": "1552950000000000"
+      },
+      {
+        "txHash": "0xb7e0b214e10048d94f09c10c616f2d2d0f7ae6c143766d501516d9bdc5d1de74",
+        "blockNumber": "25718320",
+        "timestamp": 1791877347,
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "feeWei": "1400112000000000"
+      },
+      {
+        "txHash": "0x4dafe415122c112b4fecba1eafd2554b7bfc4e8f9a1b1284ade30bad5bbe8da2",
+        "blockNumber": "25718322",
+        "timestamp": 1791877348,
+        "from": "0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841",
+        "feeWei": "1552698000000000"
+      }
+    ],
+    "balances": [
+      {
+        "token": "USDC",
+        "opening": "4912582",
+        "closing": "3464238",
+        "openingWei": "4912582000000000000",
+        "closingWei": "3464238206000000000"
+      },
+      {
+        "token": "EURC",
+        "opening": "0",
+        "closing": "0"
+      }
+    ]
+  }
+}
