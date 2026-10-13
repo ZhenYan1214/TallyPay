@@ -25,7 +25,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/ZhenYan1214/ARC.git",
+    "url": "https://github.com/ZhenYan1214/TallyPay.git",
     "directory": "packages/sdk"
   },
   "keywords": [

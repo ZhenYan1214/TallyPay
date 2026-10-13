@@ -4,7 +4,7 @@
 
 | | |
 |---|---|
-| **Live app** | https://zhenyan1214.github.io/ARC/ (GitHub Pages; enable it under Settings → Pages → Source: GitHub Actions after the first push) |
+| **Live app** | https://zhenyan1214.github.io/TallyPay/ (GitHub Pages; enable it under Settings → Pages → Source: GitHub Actions after the first push) |
 | **Mainnet demo run** | [batch 0x252dd1ff…379e](https://explorer.arc.io/tx/0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e) from [0x2ccb42…e841](https://explorer.arc.io/address/0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841), run `PB-202610-I7JR`, 2026-10-13 |
 | **Memo spec** | [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md), a proposal for an Arc-wide payment memo convention |
 | **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): evidence grades, trust boundaries, what is deliberately left out |

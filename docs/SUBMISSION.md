@@ -28,10 +28,10 @@ Tieout
 The reconciliation layer for USDC on Arc: every payment and receipt matched to the ledger entry it settles, exceptions flagged, books ready for Xero, QuickBooks or an ISO 20022 feed.
 
 **Live deployment**
-https://zhenyan1214.github.io/ARC/
+https://zhenyan1214.github.io/TallyPay/
 
 **Repository**
-https://github.com/ZhenYan1214/ARC
+https://github.com/ZhenYan1214/TallyPay
 
 **Builder profile**
 https://github.com/ZhenYan1214
