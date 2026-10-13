@@ -24,6 +24,7 @@ import {
   reconReportCsv,
   reconcile,
   xeroManualJournalCsv,
+  type Decision,
   type JournalEntry,
   type ReconItem,
   type ReconReport,
@@ -31,7 +32,7 @@ import {
 } from "@tieout/recon";
 import { AnchorBadge, ExternalLink, Notice, Stat, StatusBadge, STATUS_HELP } from "../components/ui.tsx";
 import { hashFlags } from "../App.tsx";
-import { ensureNetwork, injectedProvider, publicClientFor } from "../lib/chain.ts";
+import { ensureNetwork, injectedProvider, publicClientFor, rpcOverride, setRpcOverride } from "../lib/chain.ts";
 import { download, readLedgerFile, shortHash, type LoadedLedger } from "../lib/ledger-io.ts";
 
 /** Demo ledgers shipped with the app. Mainnet first: that is the one reviewers should see. */
@@ -49,6 +50,8 @@ interface Result {
   networkId: NetworkId;
   source: Source;
   ledgers: LoadedLedger[];
+  signers: Address[];
+  decisions: Decision[];
 }
 
 type Tab = "items" | "journal" | "export";
@@ -70,6 +73,16 @@ function parseAddresses(text: string): Address[] {
     .filter((a): a is Address => isAddress(a));
 }
 
+/** Pure recomputation from a scan already in memory: no RPC, so decisions apply instantly. */
+function compute(activity: AccountActivity, ledgers: LoadedLedger[], signers: Address[], decisions: Decision[]): { report: ReconReport; journal: JournalEntry[] } {
+  const report = reconcile(
+    ledgers.map((l) => ({ PmtInfId: l.PmtInfId, instructions: l.instructions })),
+    activity,
+    { trustedReferenceSigners: [activity.account, ...signers], decisions, incoming: ledgers.length ? "auto" : "reconcile" },
+  );
+  return { report, journal: buildJournal(report, activity.fees) };
+}
+
 export default function Console({
   handoff,
   onHandoffUsed,
@@ -85,6 +98,7 @@ export default function Console({
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
   const [memoSigners, setMemoSigners] = useState("");
+  const [rpc, setRpc] = useState(() => rpcOverride("arc-mainnet"));
   const [availableDemos, setAvailableDemos] = useState<NetworkId[] | null>(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState<string>("");
@@ -99,6 +113,10 @@ export default function Console({
       setAvailableDemos(ids.filter((x): x is NetworkId => !!x)),
     );
   }, []);
+
+  useEffect(() => {
+    setRpc(rpcOverride(networkId));
+  }, [networkId]);
 
   // "#/console?demo" loads the best available demo and reconciles it immediately.
   useEffect(() => {
@@ -175,6 +193,7 @@ export default function Console({
     }
   }
 
+  /** Scan the chain (or fall back to the demo snapshot), then reconcile. Pass no ledgers for a plain statement of the wallet. */
   async function run(override?: LoadedLedger[], extraSigners: Address[] = []) {
     const ls = override ?? ledgers;
     const first = ls[0];
@@ -182,8 +201,7 @@ export default function Console({
     const acct = first?.payer ?? account;
     setError(null);
     setResult(null);
-    if (!first) return setError("Load a ledger first.");
-    if (!isAddress(acct)) return setError("Enter the wallet address.");
+    if (!isAddress(acct)) return setError(ls.length ? "The ledger has no wallet address." : "Enter the wallet address, or load a ledger.");
     const signers = [...parseAddresses(memoSigners), ...extraSigners];
     setRunning(true);
     setProgress("");
@@ -195,8 +213,8 @@ export default function Console({
         const latest = await client.getBlockNumber();
         let to: bigint;
         let from: bigint;
-        const scanFrom = override ? first.scan?.fromBlock : fromBlock;
-        const scanTo = override ? first.scan?.toBlock : toBlock;
+        const scanFrom = override ? first?.scan?.fromBlock : fromBlock;
+        const scanTo = override ? first?.scan?.toBlock : toBlock;
         if (!override && fromDate && toDate && !scanFrom && !scanTo) {
           setProgress("finding blocks for dates…");
           ({ fromBlock: from, toBlock: to } = await blockRangeForDates(client, fromDate, toDate));
@@ -217,7 +235,7 @@ export default function Console({
         });
       } catch (liveError) {
         // Demos ship a frozen scan so the page still works when the public RPC is down.
-        if (!first.snapshotUrl) throw liveError;
+        if (!first?.snapshotUrl) throw liveError;
         const res = await fetch(first.snapshotUrl);
         if (!res.ok) throw liveError;
         const snap = parseActivity(await res.text());
@@ -225,12 +243,8 @@ export default function Console({
         const err = liveError as { shortMessage?: string; message: string };
         source = { kind: "snapshot", takenAt: snap.takenAt, reason: (err.shortMessage ?? err.message).split(/\r?\n/)[0]! };
       }
-      const report = reconcile(
-        ls.map((l) => ({ PmtInfId: l.PmtInfId, instructions: l.instructions })),
-        activity,
-        { trustedReferenceSigners: [acct as Address, ...signers] },
-      );
-      setResult({ report, activity, journal: buildJournal(report, activity.fees), networkId: net, source, ledgers: ls });
+      const { report, journal } = compute(activity, ls, signers, []);
+      setResult({ report, activity, journal, networkId: net, source, ledgers: ls, signers, decisions: [] });
       setTab("items");
       setFilter("all");
     } catch (e) {
@@ -240,14 +254,30 @@ export default function Console({
     }
   }
 
+  /** A person settles an ambiguous entry with one candidate. Recomputed from the cached scan, recorded in the audit bundle. */
+  function decide(d: Decision) {
+    if (!result) return;
+    const decisions = [...result.decisions.filter((x) => x.EndToEndId !== d.EndToEndId), d];
+    const { report, journal } = compute(result.activity, result.ledgers, result.signers, decisions);
+    setResult({ ...result, report, journal, decisions });
+  }
+
+  function undoDecision(EndToEndId: string) {
+    if (!result) return;
+    const decisions = result.decisions.filter((x) => x.EndToEndId !== EndToEndId);
+    const { report, journal } = compute(result.activity, result.ledgers, result.signers, decisions);
+    setResult({ ...result, report, journal, decisions });
+  }
+
   const totalEntries = ledgers.reduce((s, l) => s + l.instructions.length, 0);
+  const statementMode = ledgers.length === 0;
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Reconcile a wallet against your ledger</h1>
         <p className="mt-1 text-sm text-slate-600">
-          Everything runs in your browser against a public Arc RPC. Your ledger never leaves this page.
+          Everything runs in your browser against a public Arc RPC. Your ledger never leaves this page. No ledger? Enter a wallet and get a statement with a balance roll-forward instead.
         </p>
       </div>
 
@@ -315,9 +345,22 @@ export default function Console({
             onChange={(e) => setMemoSigners(e.target.value)}
           />
         </div>
+        <div className="md:col-span-8">
+          <span className="label">RPC URL (optional, stays in this browser)</span>
+          <input
+            className="input font-mono"
+            placeholder={`${NETWORKS[networkId].rpcUrl} (public default)`}
+            value={rpc}
+            onChange={(e) => setRpc(e.target.value)}
+            onBlur={() => setRpcOverride(networkId, rpc)}
+          />
+        </div>
+        <div className="md:col-span-4 flex items-end">
+          <span className="text-xs text-slate-500">Your own node or a provider key avoids public rate limits and keeps the wallet address you query off a shared endpoint.</span>
+        </div>
         <div className="md:col-span-12 flex items-center gap-4">
-          <button className="btn-primary" disabled={running || !ledgers.length} onClick={() => run()}>
-            {running ? `Scanning Arc… ${progress}` : "Reconcile"}
+          <button className="btn-primary" disabled={running || (!ledgers.length && !isAddress(account))} onClick={() => run()}>
+            {running ? `Scanning Arc… ${progress}` : statementMode ? "Statement for this wallet" : "Reconcile"}
           </button>
           <span className="text-xs text-slate-500">
             Dates are turned into block numbers by binary search; leave both empty to scan the ledger's own range or the last 9,000 blocks.
@@ -334,6 +377,8 @@ export default function Console({
           setTab={setTab}
           filter={filter}
           setFilter={setFilter}
+          onDecide={decide}
+          onUndo={undoDecision}
           onReferencesPublished={(signer) => {
             const current = parseAddresses(memoSigners);
             if (!current.some((a) => a.toLowerCase() === signer.toLowerCase())) setMemoSigners([...current, signer].join(", "));
@@ -389,11 +434,12 @@ function ScenarioGuide({ ledger }: { ledger: LoadedLedger }) {
 
 /** Everything needed to re-run and re-check this reconciliation later, in one file. */
 function auditBundle(result: Result): string {
-  const { report, activity, ledgers, networkId, source } = result;
+  const { report, activity, ledgers, networkId, source, signers, decisions } = result;
   const bigint = (_k: string, v: unknown) => (typeof v === "bigint" ? v.toString() : v);
   const body = {
-    tieout: { version: 1, generatedAt: report.generatedAt, network: networkId, account: report.account, source },
+    tieout: { version: 1, generatedAt: report.generatedAt, network: networkId, account: report.account, source, trustedReferenceSigners: [report.account, ...signers] },
     ledgers: ledgers.map(({ snapshotUrl: _s, ...l }) => l),
+    decisions,
     activity: JSON.parse(serializeActivity(activity, new Date(report.generatedAt))).activity,
     report: {
       summary: report.summary,
@@ -411,7 +457,7 @@ function auditBundle(result: Result): string {
         amount: i.transfer ? fromUnits(i.transfer.amount) : undefined,
         varianceUnits: i.varianceUnits,
         reference: i.reference ? { txHash: i.reference.txHash, sender: i.reference.sender } : undefined,
-        candidates: i.candidates?.map((c) => c.txHash),
+        candidates: i.candidates?.map((c) => ({ txHash: c.txHash, logIndex: c.logIndex })),
         candidateIds: i.candidateIds,
         notes: i.notes,
       })),
@@ -426,6 +472,8 @@ function Results({
   setTab,
   filter,
   setFilter,
+  onDecide,
+  onUndo,
   onReferencesPublished,
 }: {
   result: Result;
@@ -433,12 +481,15 @@ function Results({
   setTab: (t: Tab) => void;
   filter: Filter;
   setFilter: (f: Filter) => void;
+  onDecide: (d: Decision) => void;
+  onUndo: (EndToEndId: string) => void;
   onReferencesPublished: (signer: Address) => void;
 }) {
-  const { report, activity, journal, source } = result;
+  const { report, activity, journal, source, decisions } = result;
   const network = NETWORKS[result.networkId];
   const s = report.summary;
   const exceptions = s.mismatch + s.ambiguous + s.missing + s.duplicate + s.unexpected;
+  const statementMode = result.ledgers.length === 0;
   const items = useMemo(
     () => report.items.filter((i) => (filter === "all" ? true : filter === "exceptions" ? isException(i.status) : i.status === filter)),
     [report, filter],
@@ -453,19 +504,26 @@ function Results({
           Every transaction link below still points at the live explorer.
         </Notice>
       )}
+      {statementMode && (
+        <Notice>
+          Statement mode: no ledger loaded, so every movement is listed as unexpected and booked to suspense. Use it to see what a wallet did, check the balance
+          roll-forward, or export a camt.054 for a treasury system. Load a ledger to reconcile.
+        </Notice>
+      )}
       <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         <Stat label="Expected" value={`${fromUnits(s.expectedUnits)}`} hint={`${report.items.filter((i) => i.instruction).length} ledger entries · USDC`} />
         <Stat
           label="Settled"
           tone="good"
           value={`${fromUnits(s.settledUnits)}`}
-          hint={`${s.byEvidence.memo} by memo · ${s.byEvidence.reference} by reference · ${s.byEvidence.intent} by intent`}
+          hint={`${s.byEvidence.memo} by memo · ${s.byEvidence.reference} by reference · ${s.byEvidence.manual} by hand · ${s.byEvidence.intent} by intent`}
         />
         <Stat label="Exceptions" tone={exceptions ? "bad" : "good"} value={exceptions} hint={`${fromUnits(s.exceptionUnits)} USDC needs review`} />
         <Stat label="Network fees" value={formatUnits(report.feesWei, 18).slice(0, 10)} hint={`USDC across ${activity.fees.length} transaction${activity.fees.length === 1 ? "" : "s"}`} />
         <div className="card p-4">
           <div className="text-xs font-semibold tracking-wide text-slate-500 uppercase">Run anchor{report.anchors.length === 1 ? "" : "s"}</div>
           <div className="mt-2 space-y-1">
+            {report.anchors.length === 0 && <span className="text-xs text-slate-500">No ledger runs</span>}
             {report.anchors.map((a) => (
               <div key={a.PmtInfId} className="space-y-1">
                 <AnchorBadge status={a.status} />
@@ -518,6 +576,13 @@ function Results({
         </Notice>
       )}
 
+      {decisions.length > 0 && (
+        <Notice tone="warn">
+          {decisions.length} pairing{decisions.length === 1 ? "" : "s"} settled by hand this session. They are recorded in the audit bundle and shown as evidence "manual";
+          publishing references for them makes the decision permanent on-chain.
+        </Notice>
+      )}
+
       {intentItems.length > 0 && <AttachReferences items={intentItems} networkId={result.networkId} onPublished={onReferencesPublished} />}
 
       <div className="text-xs text-slate-500">
@@ -533,7 +598,7 @@ function Results({
             onClick={() => setTab(t)}
             className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium ${tab === t ? "border-slate-900 text-slate-900" : "border-transparent text-slate-500 hover:text-slate-800"}`}
           >
-            {{ items: "Reconciliation", journal: "Journal entries", export: "Export" }[t]}
+            {{ items: statementMode ? "Statement" : "Reconciliation", journal: "Journal entries", export: "Export" }[t]}
           </button>
         ))}
       </div>
@@ -571,6 +636,7 @@ function Results({
               <tbody className="divide-y divide-slate-100">
                 {items.map((item, idx) => {
                   const t = item.transfer;
+                  const decided = item.evidence === "manual" && item.instruction ? decisions.find((d) => d.EndToEndId === item.instruction!.EndToEndId) : undefined;
                   return (
                     <tr key={idx} className={isException(item.status) ? "bg-rose-50/30" : ""}>
                       <td className="px-4 py-3 align-top" title={STATUS_HELP[item.status]}>
@@ -580,6 +646,7 @@ function Results({
                       <td className="px-4 py-3 align-top font-mono text-xs">
                         {item.instruction?.EndToEndId ?? (t?.memo?.decoded.kind === "payment" ? t.memo.decoded.memo.EndToEndId : item.candidateIds ? item.candidateIds.join(" / ") : "—")}
                         <EvidenceLabel item={item} />
+                        {decided && <button className="mt-1 block font-sans text-[11px] text-slate-500 underline" onClick={() => onUndo(decided.EndToEndId)}>undo decision</button>}
                       </td>
                       <td className="px-4 py-3 align-top">
                         {item.instruction?.payeeName ?? <span className="text-slate-400">Unknown</span>}
@@ -588,9 +655,19 @@ function Results({
                       <td className="px-4 py-3 text-right align-top tabular-nums">{item.instruction ? item.instruction.amount : "—"}</td>
                       <td className="px-4 py-3 text-right align-top tabular-nums">{t ? fromUnits(t.amount) : "—"}</td>
                       <td className="px-4 py-3 align-top font-mono text-xs">
-                        {t ? <ExternalLink href={txUrl(network, t.txHash)}>{shortHash(t.txHash)}</ExternalLink> : item.candidates ? (
-                          <div className="space-y-0.5">
-                            {item.candidates.map((c) => <div key={`${c.txHash}:${c.logIndex}`}><ExternalLink href={txUrl(network, c.txHash)}>{shortHash(c.txHash)}</ExternalLink></div>)}
+                        {t ? <ExternalLink href={txUrl(network, t.txHash)}>{shortHash(t.txHash)}</ExternalLink> : item.candidates && item.instruction ? (
+                          <div className="space-y-1">
+                            {item.candidates.map((c) => (
+                              <div key={`${c.txHash}:${c.logIndex}`} className="flex items-center gap-2">
+                                <ExternalLink href={txUrl(network, c.txHash)}>{shortHash(c.txHash)}</ExternalLink>
+                                <button
+                                  className="rounded border border-slate-300 px-1.5 py-0.5 font-sans text-[11px] text-slate-700 hover:bg-slate-100"
+                                  onClick={() => onDecide({ EndToEndId: item.instruction!.EndToEndId, txHash: c.txHash, logIndex: c.logIndex, note: "chosen in Tieout" })}
+                                >
+                                  settle with this
+                                </button>
+                              </div>
+                            ))}
                           </div>
                         ) : "—"}
                       </td>
@@ -644,7 +721,7 @@ function Results({
         <section className="grid gap-4 md:grid-cols-3">
           <ExportCard
             title="Audit bundle (JSON)"
-            body="Ledgers, the full chain scan and every reconciliation decision in one file. Anyone with a public RPC can re-run it and get the same answer."
+            body="Ledgers, the full chain scan, every decision and every reconciliation outcome in one file. Anyone with a public RPC can re-run it and get the same answer."
             label="Download JSON"
             onClick={() => download(`tieout-audit-${report.account.slice(2, 8)}-${report.generatedAt.slice(0, 10)}.json`, auditBundle(result), "application/json")}
           />
@@ -685,6 +762,7 @@ function EvidenceLabel({ item }: { item: ReconItem }) {
   if (!t) return null;
   if (item.evidence === "memo" || t.memo?.decoded.kind === "payment") return <div className="mt-0.5 font-sans text-[11px] text-emerald-700">memo on-chain</div>;
   if (item.evidence === "reference") return <div className="mt-0.5 font-sans text-[11px] text-emerald-700">reference on-chain</div>;
+  if (item.evidence === "manual") return <div className="mt-0.5 font-sans text-[11px] text-amber-700">settled by hand</div>;
   return <div className="mt-0.5 font-sans text-[11px] text-slate-400">{t.native ? "native send, no memo" : "no memo"}</div>;
 }
 

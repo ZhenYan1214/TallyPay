@@ -16,7 +16,7 @@ export function rpcFor(network: ArcNetwork): string {
 
 export function clients(network: ArcNetwork, { needsSigner = true } = {}) {
   const chain = toViemChain(network, rpcFor(network));
-  const publicClient = createPublicClient({ chain, transport: http() });
+  const publicClient = createPublicClient({ chain, transport: http(undefined, { batch: { wait: 20 } }) });
   if (!needsSigner) return { chain, publicClient, walletClient: undefined, account: undefined };
 
   const keyName = network.id === "arc-mainnet" ? "MAINNET_PRIVATE_KEY" : "TESTNET_PRIVATE_KEY";
