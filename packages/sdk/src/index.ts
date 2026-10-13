@@ -6,3 +6,4 @@ export * from "./batch.js";
 export * from "./observe.js";
 export * from "./lookup.js";
 export * from "./snapshot.js";
+export * from "./blocks.js";

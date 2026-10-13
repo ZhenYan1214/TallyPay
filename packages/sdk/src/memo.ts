@@ -1,7 +1,7 @@
-import { hexToString, keccak256, stringToHex, type Hex } from "viem";
+import { hexToString, isHex, keccak256, stringToHex, type Hex } from "viem";
 
 /**
- * Tieout memo format, version 1 ("tp1").
+ * Tieout memo format, version 1 ("tp1", tagged payment v1).
  *
  * Field names follow ISO 20022 credit transfer messages (pain.001 / pacs.008)
  * so that bank-side systems can map them without translation. This is a
@@ -37,8 +37,24 @@ export interface RunAnchor {
   LedgerHash: Hex;
 }
 
+/**
+ * A reference attached after the fact to a transfer that could not carry a
+ * memo itself: one sent from a Safe, an MPC custodian, an exchange, or by a
+ * plain wallet send. Any EOA can publish it; it shares the payment's memoId
+ * so a Verify lookup by EndToEndId finds it. Arc's own docs suggest a
+ * "separate EOA-signed memo transaction" as the workaround for smart-contract
+ * wallets; this is that workaround with a schema.
+ */
+export interface ReferenceMemo {
+  EndToEndId: string;
+  /** Transaction that carried the transfer being referenced. */
+  TxHash: Hex;
+  PmtInfId?: string;
+}
+
 export const PAYMENT_PREFIX = "tp1:";
 export const ANCHOR_PREFIX = "tp1-run:";
+export const REFERENCE_PREFIX = "tp1-ref:";
 
 const MAX35 = /^[A-Za-z0-9/\-?:().,'+ ]{1,35}$/;
 const PURPOSE = /^[A-Z]{4}$/;
@@ -86,6 +102,20 @@ export function encodeRunAnchor(anchor: RunAnchor): Hex {
   return stringToHex(ANCHOR_PREFIX + JSON.stringify(body));
 }
 
+export function encodeReferenceMemo(ref: ReferenceMemo): Hex {
+  if (!MAX35.test(ref.EndToEndId)) {
+    throw new MemoValidationError(`EndToEndId must be 1-35 ISO 20022 characters: "${ref.EndToEndId}"`);
+  }
+  if (!isHex(ref.TxHash) || ref.TxHash.length !== 66) {
+    throw new MemoValidationError(`TxHash must be a 32-byte hex transaction hash: "${ref.TxHash}"`);
+  }
+  if (ref.PmtInfId !== undefined && !MAX35.test(ref.PmtInfId)) {
+    throw new MemoValidationError(`PmtInfId must be 1-35 ISO 20022 characters: "${ref.PmtInfId}"`);
+  }
+  const body = compact({ ...ref, TxHash: ref.TxHash.toLowerCase() as Hex }, ["EndToEndId", "TxHash", "PmtInfId"]);
+  return stringToHex(REFERENCE_PREFIX + JSON.stringify(body));
+}
+
 /** Indexed memoId for a payment. Lets anyone holding the ledger query its logs directly. */
 export function paymentMemoId(endToEndId: string): Hex {
   return keccak256(stringToHex(PAYMENT_PREFIX + endToEndId));
@@ -98,6 +128,7 @@ export function runAnchorMemoId(pmtInfId: string): Hex {
 export type DecodedMemo =
   | { kind: "payment"; memo: PaymentMemo }
   | { kind: "anchor"; anchor: RunAnchor }
+  | { kind: "reference"; reference: ReferenceMemo }
   | { kind: "unknown"; text: string };
 
 export function decodeMemo(data: Hex): DecodedMemo {
@@ -112,6 +143,11 @@ export function decodeMemo(data: Hex): DecodedMemo {
       const anchor = JSON.parse(text.slice(ANCHOR_PREFIX.length)) as RunAnchor;
       if (typeof anchor.PmtInfId === "string" && typeof anchor.LedgerHash === "string") {
         return { kind: "anchor", anchor };
+      }
+    } else if (text.startsWith(REFERENCE_PREFIX)) {
+      const reference = JSON.parse(text.slice(REFERENCE_PREFIX.length)) as ReferenceMemo;
+      if (typeof reference.EndToEndId === "string" && typeof reference.TxHash === "string" && isHex(reference.TxHash)) {
+        return { kind: "reference", reference: { ...reference, TxHash: reference.TxHash.toLowerCase() as Hex } };
       }
     } else if (text.startsWith(PAYMENT_PREFIX)) {
       const memo = JSON.parse(text.slice(PAYMENT_PREFIX.length)) as PaymentMemo;

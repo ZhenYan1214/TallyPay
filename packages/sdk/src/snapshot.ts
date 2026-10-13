@@ -1,11 +1,12 @@
 import type { Address, Hex } from "viem";
-import type { AccountActivity, AnchorObservation, FeeObservation, TransferObservation } from "./observe.js";
+import type { AccountActivity, AnchorObservation, FeeObservation, ReferenceObservation, TransferObservation } from "./observe.js";
 
 /**
  * A chain scan frozen to JSON. The web app ships one per demo so the demo
  * still renders when a public RPC is slow or unreachable; the snapshot is
  * clearly labelled as such in the UI and carries the block range it covers,
- * so anyone can re-run the live scan and compare.
+ * so anyone can re-run the live scan and compare. The same format is the
+ * evidence half of an audit bundle.
  */
 export interface ActivitySnapshot {
   version: 1;
@@ -48,6 +49,7 @@ export function serializeActivity(activity: AccountActivity, takenAt = new Date(
       toBlock: activity.toBlock.toString(),
       transfers: activity.transfers.map(transferOut),
       anchors: activity.anchors.map((a) => ({ ...a, blockNumber: a.blockNumber.toString() })),
+      references: (activity.references ?? []).map((r) => ({ ...r, blockNumber: r.blockNumber.toString() })),
       fees: activity.fees.map((f) => ({ ...f, blockNumber: f.blockNumber.toString(), feeWei: f.feeWei.toString() })),
       balances: activity.balances?.map((b) => ({ ...b, opening: b.opening.toString(), closing: b.closing.toString() })),
     },
@@ -66,6 +68,9 @@ export function parseActivity(json: string): ActivitySnapshot {
     toBlock: BigInt(a.toBlock),
     transfers: a.transfers.map(transferIn),
     anchors: a.anchors.map((x) => ({ ...x, txHash: x.txHash as Hex, sender: x.sender as Address, blockNumber: BigInt(x.blockNumber) }) as AnchorObservation),
+    references: (a.references ?? []).map(
+      (x) => ({ ...x, txHash: x.txHash as Hex, sender: x.sender as Address, memoId: x.memoId as Hex, blockNumber: BigInt(x.blockNumber) }) as ReferenceObservation,
+    ),
     fees: a.fees.map((x) => ({ ...x, txHash: x.txHash as Hex, from: x.from as Address, blockNumber: BigInt(x.blockNumber), feeWei: BigInt(x.feeWei) }) as FeeObservation),
     balances: a.balances?.map((b) => ({ token: b.token, opening: BigInt(b.opening), closing: BigInt(b.closing) })),
   };

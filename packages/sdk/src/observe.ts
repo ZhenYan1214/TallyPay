@@ -1,7 +1,7 @@
 import { getAddress, keccak256, type Address, type Hex, type PublicClient } from "viem";
 import { erc20Abi, memoEvent, transferEvent } from "./abis.js";
 import { transferCallData } from "./batch.js";
-import { decodeMemo, type DecodedMemo, type RunAnchor } from "./memo.js";
+import { decodeMemo, type DecodedMemo, type ReferenceMemo, type RunAnchor } from "./memo.js";
 import type { TokenSymbol } from "./ledger.js";
 import { MAX_LOG_RANGE, NATIVE_TO_UNITS, SYSTEM_TRANSFER_EMITTER, type ArcNetwork } from "./networks.js";
 
@@ -39,6 +39,18 @@ export interface AnchorObservation {
   anchor: RunAnchor;
 }
 
+/** A reference published after the fact for a transfer that carried no memo. */
+export interface ReferenceObservation {
+  /** Transaction that carried the reference memo (not the referenced transfer). */
+  txHash: Hex;
+  blockNumber: bigint;
+  timestamp: number;
+  /** The attesting EOA. */
+  sender: Address;
+  memoId: Hex;
+  reference: ReferenceMemo;
+}
+
 /** Network fee paid by the observed account, in USDC (18-decimal native units). */
 export interface FeeObservation {
   txHash: Hex;
@@ -64,6 +76,8 @@ export interface AccountActivity {
   toBlock: bigint;
   transfers: TransferObservation[];
   anchors: AnchorObservation[];
+  /** Reference memos from the account and from any extra memo senders. */
+  references: ReferenceObservation[];
   fees: FeeObservation[];
   /** Absent when the RPC cannot serve historical balances. */
   balances?: BalanceObservation[];
@@ -79,6 +93,12 @@ export interface ObserveOptions {
   includeIncoming?: boolean;
   /** Read opening and closing balances for a roll-forward. Defaults to true. */
   includeBalances?: boolean;
+  /**
+   * Extra EOAs whose memos should be read, e.g. the operations wallet that
+   * publishes references for a Safe's payouts. The account itself is always
+   * included.
+   */
+  memoSenders?: Address[];
   onProgress?: (done: bigint, total: bigint) => void;
 }
 
@@ -96,8 +116,8 @@ type RawLog = { address: Address; transactionHash: Hex | null; blockNumber: bigi
 /**
  * Reads everything Tieout needs to reconcile one account over a block range:
  * USDC/EURC transfers in both directions, the Memo events that wrap them,
- * run anchors, the network fees the account paid, and the balances at the
- * edges of the range.
+ * run anchors, after-the-fact references, the network fees the account
+ * paid, and the balances at the edges of the range.
  *
  * Arc emits two logs for every ERC-20 USDC transfer: one from the token
  * contract (6 decimals) and one from the EIP-7708 system emitter (18
@@ -121,6 +141,7 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
     ["EURC", network.contracts.eurc],
   ];
   const tokenByAddress = new Map(tokens.map(([symbol, address]) => [address.toLowerCase(), symbol]));
+  const memoSenders = [...new Set([account, ...(options.memoSenders ?? []).map((a) => getAddress(a))])];
 
   const transferLogs: Array<{ token: TokenSymbol; log: RawLog }> = [];
   const nativeLogs: RawLog[] = [];
@@ -129,7 +150,7 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
   const getTransfers = (address: Address | Address[], from: bigint, to: bigint, direction: "out" | "in") =>
     client.getLogs({ address, event: transferEvent, args: direction === "out" ? { from: account } : { to: account }, fromBlock: from, toBlock: to });
   const getMemos = (from: bigint, to: bigint) =>
-    client.getLogs({ address: network.contracts.memo, event: memoEvent, args: { sender: account }, fromBlock: from, toBlock: to });
+    client.getLogs({ address: network.contracts.memo, event: memoEvent, args: { sender: memoSenders }, fromBlock: from, toBlock: to });
 
   const tokenAddresses = tokens.map(([, address]) => address);
   const chunks = ranges(options.fromBlock, toBlock);
@@ -218,7 +239,7 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
       const args = match.args as { memoId: Hex; memo: Hex; memoIndex: bigint };
       observation.memo = { memoId: args.memoId, memoIndex: args.memoIndex, decoded: decodeMemo(args.memo) };
     }
-    // Zero-value self transfers only exist to carry run anchors.
+    // Zero-value self transfers only exist to carry run anchors and references.
     if (!(value === 0n && observation.from === observation.to)) transfers.push(observation);
   }
 
@@ -250,23 +271,35 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
   }
 
   const anchors: AnchorObservation[] = [];
+  const references: ReferenceObservation[] = [];
   for (const log of memoLogs) {
-    const args = log.args as { sender: Address; memo: Hex };
+    const args = log.args as { sender: Address; memo: Hex; memoId: Hex };
     const decoded = decodeMemo(args.memo);
-    if (decoded.kind !== "anchor") continue;
-    anchors.push({
-      txHash: log.transactionHash!,
-      blockNumber: log.blockNumber!,
-      timestamp: await timestampOf(log.blockNumber!),
-      sender: getAddress(args.sender),
-      anchor: decoded.anchor,
-    });
+    if (decoded.kind === "anchor") {
+      anchors.push({
+        txHash: log.transactionHash!,
+        blockNumber: log.blockNumber!,
+        timestamp: await timestampOf(log.blockNumber!),
+        sender: getAddress(args.sender),
+        anchor: decoded.anchor,
+      });
+    } else if (decoded.kind === "reference") {
+      references.push({
+        txHash: log.transactionHash!,
+        blockNumber: log.blockNumber!,
+        timestamp: await timestampOf(log.blockNumber!),
+        sender: getAddress(args.sender),
+        memoId: args.memoId,
+        reference: decoded.reference,
+      });
+    }
   }
 
   // Fees: one per transaction the account sent that moved tokens or wrote memos.
   const sentTxs = new Set<Hex>();
   for (const t of transfers) if (t.from === account) sentTxs.add(t.txHash);
-  for (const a of anchors) sentTxs.add(a.txHash);
+  for (const a of anchors) if (a.sender === account) sentTxs.add(a.txHash);
+  for (const r of references) if (r.sender === account) sentTxs.add(r.txHash);
   const fees: FeeObservation[] = [];
   for (const txHash of sentTxs) {
     const receipt = await client.getTransactionReceipt({ hash: txHash });
@@ -301,7 +334,8 @@ export async function observeAccount(options: ObserveOptions): Promise<AccountAc
     a.blockNumber === b.blockNumber ? 0 : a.blockNumber < b.blockNumber ? -1 : 1;
   transfers.sort((a, b) => byOrder(a, b) || a.logIndex - b.logIndex);
   anchors.sort(byOrder);
+  references.sort(byOrder);
   fees.sort(byOrder);
 
-  return { network: network.id, account, fromBlock: options.fromBlock, toBlock, transfers, anchors, fees, balances };
+  return { network: network.id, account, fromBlock: options.fromBlock, toBlock, transfers, anchors, references, fees, balances };
 }

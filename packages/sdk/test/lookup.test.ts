@@ -89,6 +89,7 @@ describe("activity snapshot", () => {
           anchor: { PmtInfId: "R", NbOfTxs: 1, CtrlSum: "0.123456", LedgerHash: `0x${"3".repeat(64)}` },
         },
       ],
+      references: [],
       fees: [{ txHash: `0x${"2".repeat(64)}`, blockNumber: 12n, timestamp: 1_760_000_000, from: PAYER, feeWei: 5_000_000_000_000n }],
     };
     const json = serializeActivity(activity, new Date("2026-10-13T00:00:00Z"));
