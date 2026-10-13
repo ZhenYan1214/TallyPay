@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "takenAt": "2026-10-13T05:53:57.862Z",
+  "takenAt": "2026-10-13T06:37:58.854Z",
   "activity": {
     "network": "arc-testnet",
     "account": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
@@ -293,6 +293,18 @@
         "timestamp": 1791863742,
         "from": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
         "feeWei": "1552698000000000"
+      }
+    ],
+    "balances": [
+      {
+        "token": "USDC",
+        "opening": "39966194",
+        "closing": "38459594"
+      },
+      {
+        "token": "EURC",
+        "opening": "40000000",
+        "closing": "40000000"
       }
     ]
   }
