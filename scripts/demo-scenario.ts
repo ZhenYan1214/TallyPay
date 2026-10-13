@@ -11,6 +11,9 @@
  *   - 10 sellers are paid in one batch with memos and a run anchor.
  *   - Seller 07 is paid separately by a plain transfer with no memo,
  *     as a Safe or MPC wallet would do. Expect: matched_by_intent.
+ *   - Seller 11 is paid the same way, then a reference memo naming that
+ *     transaction is published by the operations wallet. Expect: matched,
+ *     evidence "reference".
  *   - Seller 12 is on hold and never paid. Expect: missing.
  *   - After the run, someone edits seller 04's amount in the ledger.
  *     Expect: mismatch, and the run anchor pinpoints the edit.
@@ -29,6 +32,7 @@ import { fileURLToPath } from "node:url";
 import { createWalletClient, encodeFunctionData, http, type Hex } from "viem";
 import {
   buildPayoutRun,
+  buildReferenceBatch,
   buildSinglePayment,
   erc20Abi,
   fromUnits,
@@ -87,9 +91,10 @@ const invoices: PayoutInstruction[] = [
 ];
 
 const MANUAL = `${runId}-S07`;
+const ATTESTED = `${runId}-S11`;
 const ON_HOLD = `${runId}-S12`;
 const EDITED = `${runId}-S04`;
-const batch = payouts.filter((i) => i.EndToEndId !== MANUAL && i.EndToEndId !== ON_HOLD);
+const batch = payouts.filter((i) => i.EndToEndId !== MANUAL && i.EndToEndId !== ATTESTED && i.EndToEndId !== ON_HOLD);
 
 const total = payouts.reduce((s, i) => s + toUnits(i.amount), 0n);
 const balance = await publicClient.readContract({ address: network.contracts.usdc, abi: erc20Abi, functionName: "balanceOf", args: [payer] });
@@ -116,6 +121,21 @@ const manualTx = await walletClient!.sendTransaction({
 });
 await publicClient.waitForTransactionReceipt({ hash: manualTx });
 console.log(`2. Seller 07 paid without memo · ${network.explorerUrl}/tx/${manualTx}`);
+
+// 2b. Seller 11 paid the same way, then the operations wallet (here: the payer itself) publishes an on-chain
+//     reference for that transaction. This is the path for Safe, custodial and exchange payouts.
+const attested = payouts.find((i) => i.EndToEndId === ATTESTED)!;
+const attestedTx = await walletClient!.sendTransaction({
+  to: network.contracts.usdc,
+  data: encodeFunctionData({ abi: erc20Abi, functionName: "transfer", args: [attested.recipient, toUnits(attested.amount)] }),
+  ...fees,
+});
+await publicClient.waitForTransactionReceipt({ hash: attestedTx });
+const refPlan = buildReferenceBatch({ network, signer: payer, references: [{ EndToEndId: ATTESTED, TxHash: attestedTx, PmtInfId: runId }] });
+await publicClient.call({ account: payer, to: refPlan.to, data: refPlan.data });
+const referenceTx = await walletClient!.sendTransaction({ to: refPlan.to, data: refPlan.data, ...fees });
+await publicClient.waitForTransactionReceipt({ hash: referenceTx });
+console.log(`2b. Seller 11 paid without memo, reference published · ${network.explorerUrl}/tx/${referenceTx}`);
 
 // 3. An outflow the ledger does not know about.
 const stray = demoWallet(payerKey, "unknown-counterparty").account.address;
@@ -156,6 +176,8 @@ const out: PayoutRunLedger & { scenario: Record<string, string>; scan: { fromBlo
   scenario: {
     batchTx: runTx,
     manualNoMemoTx: manualTx,
+    attestedTx,
+    referenceTx,
     unrecordedTx: strayTx,
     editedAfterRun: EDITED,
     onHold: ON_HOLD,

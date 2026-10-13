@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "takenAt": "2026-10-13T06:37:58.854Z",
+  "takenAt": "2026-10-13T07:09:05.832Z",
   "activity": {
     "network": "arc-testnet",
     "account": "0x4EC7a00D26d392e1B29e6b7fA0199D5849A1459d",
@@ -272,6 +272,7 @@
         }
       }
     ],
+    "references": [],
     "fees": [
       {
         "txHash": "0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223",
