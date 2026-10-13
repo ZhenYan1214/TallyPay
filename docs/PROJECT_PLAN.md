@@ -2,7 +2,7 @@
 
 > Arc 上的對帳層：讓 Arc 上的 USDC 金流，自動對到帳本、抓出異常、變成會計分錄。
 >
-> 最後更新：2026-10-13 · 狀態：專案已改名 Tieout；測試網功能全部完成；第二、三、四輪審查修正完成（研究見 `docs/RESEARCH.md`，架構見 `docs/ARCHITECTURE.md`）；等待主網部署
+> 最後更新：2026-10-13 · 狀態：專案已改名 Tieout；**主網 demo 已跑完**（run `PB-202610-I7JR`，7 筆交易，付款方手續費 0.018344 USDC）；六輪審查修正完成；待推送 GitHub 並開啟 Pages
 
 ---
 
@@ -532,14 +532,14 @@ ReconReport { items, anchors, summary }
 - [ ] EURC 付款與匯率入帳（延後，不影響評分）
 - [ ] 手機版面檢查（延後）
 
-### 11.2 主網（使用者確認後再進行）
+### 11.2 主網（2026-10-13 完成）
 
-- [ ] 在 `.env` 填入 `MAINNET_PRIVATE_KEY`，Arc 主網錢包準備至少 2 USDC
-- [ ] 執行 `npm run demo -- --network=arc-mainnet`
-- [ ] 執行 `npm run snapshot -- apps/web/public/demo/promptbazaar-arc-mainnet.json`（快照備援）
-- [ ] 執行 `npm run gas -- apps/web/public/demo/promptbazaar-arc-mainnet.json`，把表格貼進 README「What it costs」
-- [ ] 網站會自動優先使用主網示範資料；確認首頁按鈕一鍵跑通
-- [ ] 示範完執行 `npm run sweep -- --network=arc-mainnet` 回收資金（可等審查期過後）
+- [x] 主網錢包 `0x2ccb…e841`，起始餘額 4.912582 USDC
+- [x] `npm run demo -- --network=arc-mainnet`：批次 0x252dd1ff…379e 等 7 筆交易全部成功
+- [x] 主網快照、gas 報告、對帳驗證：10 matched（含 1 reference）、1 by intent、1 mismatch、2 missing、2 unexpected；滾算精確到 wei 差額 0
+- [x] 首次主網跑出兩個讀取 bug 並修正：收款方 memo 由付款方簽署、18 位小數手續費造成的 1 單位 dust
+- [x] README、投稿稿填入主網連結與數據
+- [ ] 審查期過後執行 `npm run sweep -- --network=arc-mainnet` 回收約 1.44 USDC
 
 ### 11.3 發布
 

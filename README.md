@@ -4,8 +4,8 @@
 
 | | |
 |---|---|
-| **Live app** | _TODO: GitHub Pages URL_ |
-| **Mainnet demo run** | _TODO: explorer link to the PromptBazaar batch on Arc mainnet_ |
+| **Live app** | https://zhenyan1214.github.io/ARC/ (GitHub Pages; enable it under Settings → Pages → Source: GitHub Actions after the first push) |
+| **Mainnet demo run** | [batch 0x252dd1ff…379e](https://explorer.arc.io/tx/0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e) from [0x2ccb42…e841](https://explorer.arc.io/address/0x2ccb42B46e63BdA5eecc216bFDFC7a4a26A2e841), run `PB-202610-I7JR`, 2026-10-13 |
 | **Memo spec** | [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md), a proposal for an Arc-wide payment memo convention |
 | **Architecture** | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md): evidence grades, trust boundaries, what is deliberately left out |
 | **Integrate** | [docs/INTEGRATION.md](docs/INTEGRATION.md): emit memos, publish references, reconcile, in a few lines each |
@@ -25,7 +25,7 @@
 
 ## Try it in 60 seconds
 
-1. Open the live app and click **Run the PromptBazaar demo**. It scans Arc mainnet from your browser and reconciles a real payout run and two invoices: 9 payouts matched, 1 matched without a memo, 1 edited after payment, 1 never paid, 1 unexplained outflow, 1 invoice paid with a memo, 1 invoice still open, 1 unexplained receipt. Every row links to the explorer. The balance roll-forward at the top reads "fully explained".
+1. Open the live app and click **Run the PromptBazaar demo**. It scans Arc mainnet from your browser and reconciles a real payout run and two invoices: 9 payouts matched by memo, 1 matched by a reference published afterwards, 1 matched by intent only, 1 edited after payment, 1 never paid, 1 unexplained outflow, 1 invoice paid with a memo, 1 invoice still open, 1 unexplained native receipt. Every row links to the explorer. The balance roll-forward at the top reads "fully explained", exact to the wei.
 2. Open **Verify**, click **Use a demo payment**, then **Look up**. The payment is found from its `EndToEndId` alone, no transaction hash, through Arc's indexed `memoId`.
 3. Open **Pay a run → Request a payment**, fill in an amount, copy the link, open it. The payer's side is prefilled with your invoice id; when they pay, the receipt reconciles itself.
 4. Open **Journal entries** and **Export** to see the double-entry template, the Xero and QuickBooks import files, and the ISO 20022 camt.054 notification.
@@ -77,7 +77,7 @@ PromptBazaar is a fictional AI-prompt marketplace paying 12 sellers in 12 countr
 
 | Case | What happens | Expected result |
 |---|---|---|
-| 10 sellers | Paid in one batch with memos and an anchor | `matched` |
+| 9 sellers | Paid in one batch with memos and an anchor | `matched` |
 | Seller 07 | Paid by a plain ERC-20 transfer with no memo, as a Safe would | `matched_by_intent` |
 | Seller 11 | Paid the same way, then the operations wallet published an on-chain reference for that transaction | `matched`, evidence `reference` |
 | Seller 12 | On hold, never paid | `missing` |
@@ -87,20 +87,21 @@ PromptBazaar is a fictional AI-prompt marketplace paying 12 sellers in 12 countr
 | Seller 05 | Invoiced, has not paid | `missing` (in) |
 | Seller 03 | Sends a tip with a plain wallet send: native USDC, no memo, no invoice | `unexpected` (in), flagged as a native send |
 
-The app shows this table next to the results, with a link to the real transaction behind each case. (The reference case and the three money-in cases were added to the scenario script after the testnet run shown in the repo; they appear once the demo is run again, which the mainnet run does.)
+The app shows this table next to the results, with a link to the real transaction behind each case. The mainnet run carries every case; the older testnet run in the repo predates the reference and money-in cases.
 
 ## What it costs on Arc
 
-Measured from receipts with `npm run gas` (Arc testnet, 21 gwei):
+Measured from receipts with `npm run gas` on **Arc mainnet**, 21 gwei, 2026-10-13:
 
 | Transaction | What it carried | Gas used | Fee (USDC) | Per payment (USDC) |
 |---|---|---:|---:|---:|
-| [0x1bafdd8c…8223](https://explorer.testnet.arc.io/tx/0x1bafdd8cd30f3ec603c6402f64eb0b21242ca71d12fcf11c31694b3d69388223) | batch: 10 memo payments + anchor | 642,626 | 0.013495 | 0.001350 |
-| [0x0a956504…a677](https://explorer.testnet.arc.io/tx/0x0a956504ca24596100442f995ab573775df9eda6222d1dd92f5167da6e19a677) | plain transfer, no memo | 73,950 | 0.001553 | 0.001553 |
+| [0x252dd1ff…379e](https://explorer.arc.io/tx/0x252dd1ff0f0ad77cb2d9fde109cd96de409521d52fbd662e4a9907eed684379e) | batch: 9 memo payments + anchor | 585,004 | 0.012285 | 0.001365 |
+| [0x09140a73…ea19](https://explorer.arc.io/tx/0x09140a733ee74c8198bfb42664fa3dfc5547130142ac93562e00fbf0e24fea19) | plain transfer, no memo | 73,950 | 0.001553 | 0.001553 |
+| [0x3e89f95b…9467](https://explorer.arc.io/tx/0x3e89f95b505a01855c26844d04070fdc2ae00ad4431b45a127710fdb8eff9467) | single memo payment (invoice) | 69,994 | 0.001470 | 0.001470 |
+| [0xb7e0b214…de74](https://explorer.arc.io/tx/0xb7e0b214e10048d94f09c10c616f2d2d0f7ae6c143766d501516d9bdc5d1de74) | one reference published after the fact | 66,672 | 0.001400 | – |
+| [0xd0a300d5…c518](https://explorer.arc.io/tx/0xd0a300d52820378dc564364211c436c5b3c60d969fa0707f5e0198e308fec518) | native wallet send (no ERC-20 call) | 21,000 | 0.000441 | – |
 
-A memo-tagged payment inside a batch costs **0.87×** a plain transfer sent on its own, anchor included. The memo is not the expensive part; the per-transaction base cost is, and batching removes it.
-
-_TODO after the mainnet run: replace with `npm run gas -- apps/web/public/demo/promptbazaar-arc-mainnet.json`._
+A memo-tagged payment inside a batch costs **0.88×** a plain transfer sent on its own, anchor included. A single memo payment costs less than a plain ERC-20 transfer too. The memo is not the expensive part; the per-transaction base cost is, and batching removes it. The whole seven-transaction demo cost the payer 0.018344 USDC in fees.
 
 ## Memo format (`tp1`)
 
@@ -200,7 +201,9 @@ Verified with real testnet transactions ([example](https://explorer.testnet.arc.
 - Public RPCs do serve historical `balanceOf` at a block number, which is what makes the balance roll-forward possible without an archive node.
 - `maxFeePerGas` below 20 gwei is dropped silently, with no error from the RPC.
 - Public RPCs do not expose `debug_traceCall` or `eth_simulateV1`; event shapes had to be confirmed with real transactions.
-- A memo-tagged payment inside a batch is cheaper than a plain transfer sent alone (0.87×), because the batch amortises the base cost.
+- A memo-tagged payment inside a batch is cheaper than a plain transfer sent alone (0.88× on mainnet), because the batch amortises the base cost.
+- Memos on money coming in are signed by the payer, not by the receiving account, so a sender-filtered memo scan misses them; Tieout reads them from the receipts of incoming transfers. Found on the first mainnet run, fixed the same day.
+- Fees are charged in 18 decimals while the ERC-20 balance view has 6, so a roll-forward in micro-dollars can be off by one unit; Tieout does it in wei from the native balance and it ties exactly.
 - The Memo tutorial encodes `memoData` as a plain string and leaves the format to the application. `tp1` is one answer; a canonical schema from Arc would let every indexer and accounting tool on the chain agree.
 
 ## Architecture
@@ -255,7 +258,7 @@ CSV columns: `EndToEndId, direction, recipient, payer, amount, token, Purp, Cdtr
 
 ## Mainnet checklist
 
-The demo is network-agnostic. To put it on mainnet:
+Done on 2026-10-13 (run `PB-202610-I7JR`). To repeat it, for example after changing the scenario:
 
 ```bash
 # .env: MAINNET_PRIVATE_KEY=…  (wallet holding ≥ 2 USDC on Arc mainnet)
@@ -264,7 +267,7 @@ npm run snapshot -- apps/web/public/demo/promptbazaar-arc-mainnet.json
 npm run gas -- apps/web/public/demo/promptbazaar-arc-mainnet.json
 ```
 
-Then fill in the two links at the top of this file, commit the two new files under `apps/web/public/demo/`, and push. The web app prefers the mainnet demo automatically when it is present. [docs/SUBMISSION.md](docs/SUBMISSION.md) has the full pre-flight list.
+Then update the links at the top of this file, commit the two files under `apps/web/public/demo/`, and push. The web app prefers the mainnet demo automatically when it is present. Demo funds sit in wallets derived from the payer key and come back with `npm run sweep -- --network=arc-mainnet`. [docs/SUBMISSION.md](docs/SUBMISSION.md) has the full pre-flight list.
 
 ## Accounting notes
 
