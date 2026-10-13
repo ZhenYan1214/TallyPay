@@ -14,21 +14,24 @@ function toCsv(rows: Array<Array<string | number | undefined>>): string {
 /** One row per reconciliation item, for review and audit files. */
 export function reconReportCsv(report: ReconReport, explorerUrl: string): string {
   const rows: Array<Array<string | number | undefined>> = [
-    ["status", "EndToEndId", "PmtInfId", "payee", "ledger_recipient", "ledger_amount", "token", "chain_recipient", "chain_amount", "tx_hash", "explorer", "block", "timestamp_utc", "memo_EndToEndId", "notes"],
+    ["status", "direction", "EndToEndId", "PmtInfId", "payee", "ledger_counterparty", "ledger_amount", "token", "chain_counterparty", "chain_amount", "variance", "native", "tx_hash", "explorer", "block", "timestamp_utc", "memo_EndToEndId", "notes"],
   ];
   for (const item of report.items) {
     const t = item.transfer;
     const memo = t?.memo?.decoded.kind === "payment" ? t.memo.decoded.memo.EndToEndId : "";
     rows.push([
       item.status,
+      item.direction,
       item.instruction?.EndToEndId,
       item.instruction?.PmtInfId,
       item.instruction?.payeeName,
-      item.instruction?.recipient,
+      item.direction === "in" ? item.instruction?.payer : item.instruction?.recipient,
       item.instruction?.amount,
       item.instruction?.token ?? t?.token,
-      t?.to,
+      item.direction === "in" ? t?.from : t?.to,
       t ? fromUnits(t.amount) : undefined,
+      item.varianceUnits !== undefined ? fromUnits(item.varianceUnits) : undefined,
+      t?.native ? "yes" : "",
       t?.txHash,
       t ? `${explorerUrl}/tx/${t.txHash}` : undefined,
       t ? t.blockNumber.toString() : undefined,
@@ -72,6 +75,42 @@ export function xeroManualJournalCsv(entries: JournalEntry[], taxRate = "Tax Exe
       if (cents === 0n) continue;
       const amount = `${isDebit ? "" : "-"}${cents / 100n}.${(cents % 100n).toString().padStart(2, "0")}`;
       rows.push([entry.narration, `${d}/${m}/${y}`, entry.txHash ?? entry.reference, l.account, taxRate, amount, "Arc tx", entry.reference]);
+    }
+  }
+  return toCsv(rows);
+}
+
+/**
+ * QuickBooks Online "Import journal entries" CSV. QBO matches on account
+ * NAME, not code; dates are MM/dd/yyyy; every journal must balance.
+ * Create the accounts first (USDC wallet as Other Current Asset, Payouts
+ * payable as Other Current Liability, Receivables as Other Current Asset),
+ * or rename them in ChartOfAccounts to match your own.
+ */
+export function qboJournalCsv(entries: JournalEntry[]): string {
+  const rows: Array<Array<string | number | undefined>> = [
+    ["*JournalNo", "*JournalDate", "*AccountName", "Debits", "Credits", "Description", "Name", "Currency"],
+  ];
+  for (const entry of entries) {
+    const [y, m, d] = entry.date.split("-");
+    for (const l of entry.lines) {
+      const debit = toUnits(l.debit);
+      const credit = toUnits(l.credit);
+      const cents = (v: bigint) => {
+        const c = (v + 5_000n) / 10_000n;
+        return `${c / 100n}.${(c % 100n).toString().padStart(2, "0")}`;
+      };
+      if (debit === 0n && credit === 0n) continue;
+      rows.push([
+        entry.reference,
+        `${m}/${d}/${y}`,
+        l.accountName,
+        debit > 0n ? cents(debit) : "",
+        credit > 0n ? cents(credit) : "",
+        `${entry.narration}${entry.txHash ? ` · ${entry.txHash}` : ""}`,
+        "",
+        entry.currency === "EURC" ? "EUR" : "USD",
+      ]);
     }
   }
   return toCsv(rows);

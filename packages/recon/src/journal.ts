@@ -10,6 +10,7 @@ export interface ChartOfAccounts {
   usdcWallet: string;
   eurcWallet: string;
   payable: string;
+  receivable: string;
   networkFees: string;
   suspense: string;
 }
@@ -18,6 +19,7 @@ export const DEFAULT_ACCOUNTS: ChartOfAccounts = {
   usdcWallet: "1015",
   eurcWallet: "1016",
   payable: "2110",
+  receivable: "1210",
   networkFees: "6810",
   suspense: "1999",
 };
@@ -26,6 +28,7 @@ export const ACCOUNT_NAMES: Record<keyof ChartOfAccounts, string> = {
   usdcWallet: "USDC wallet (Arc)",
   eurcWallet: "EURC wallet (Arc)",
   payable: "Payouts payable",
+  receivable: "Receivables (USDC invoices)",
   networkFees: "Network fees",
   suspense: "Suspense: unreconciled",
 };
@@ -65,26 +68,29 @@ function dateOf(timestamp: number): string {
   return new Date(timestamp * 1000).toISOString().slice(0, 10);
 }
 
+/**
+ * Payouts: debit Payouts payable, credit the wallet. Receipts: debit the
+ * wallet, credit Receivables. Anything unreconciled goes against Suspense
+ * on the side that keeps the wallet account true to the chain.
+ */
 function entryForItem(item: ReconItem, accounts: ChartOfAccounts): JournalEntry | undefined {
   const t = item.transfer;
   if (!t) return undefined; // "missing" items have nothing to book yet.
   const amount = fromUnits(t.amount);
   const reference = item.instruction?.EndToEndId ?? (t.memo?.decoded.kind === "payment" ? t.memo.decoded.memo.EndToEndId : t.txHash.slice(0, 10));
   const cleared = item.status === "matched" || item.status === "matched_by_intent";
-  const debitAccount: keyof ChartOfAccounts = cleared ? "payable" : "suspense";
   const run = item.instruction?.PmtInfId ? ` · run ${item.instruction.PmtInfId}` : "";
+  const payee = item.instruction?.payeeName ? ` · ${item.instruction.payeeName}` : "";
+  const wallet = walletKey(t.token);
+  const other: keyof ChartOfAccounts = cleared ? (item.direction === "in" ? "receivable" : "payable") : "suspense";
   const narration = cleared
-    ? `Payout ${reference}${run}${item.instruction?.payeeName ? ` · ${item.instruction.payeeName}` : ""}`
-    : `Unreconciled ${item.status} ${reference}${run}: review required`;
-  return {
-    date: dateOf(t.timestamp),
-    narration,
-    currency: t.token,
-    reference,
-    txHash: t.txHash,
-    status: item.status,
-    lines: [line(accounts, debitAccount, "debit", amount), line(accounts, walletKey(t.token), "credit", amount)],
-  };
+    ? `${item.direction === "in" ? "Receipt" : "Payout"} ${reference}${run}${payee}`
+    : `Unreconciled ${item.status} ${item.direction === "in" ? "receipt" : "payment"} ${reference}${run}: review required`;
+  const lines =
+    item.direction === "in"
+      ? [line(accounts, wallet, "debit", amount), line(accounts, other, "credit", amount)]
+      : [line(accounts, other, "debit", amount), line(accounts, wallet, "credit", amount)];
+  return { date: dateOf(t.timestamp), narration, currency: t.token, reference, txHash: t.txHash, status: item.status, lines };
 }
 
 /**
