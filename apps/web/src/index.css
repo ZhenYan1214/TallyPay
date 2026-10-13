@@ -20,7 +20,6 @@ html {
 
 body {
   @apply bg-paper text-slate-900 antialiased;
-  background-image: radial-gradient(60rem 30rem at 50% -10rem, rgba(16, 185, 129, 0.07), transparent 60%);
 }
 
 ::selection {
@@ -41,7 +40,12 @@ body {
 }
 
 @utility btn-primary {
-  @apply inline-flex items-center justify-center gap-2 rounded-xl bg-ink px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-slate-800 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
+  @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-sm font-semibold text-white transition active:translate-y-px disabled:cursor-not-allowed disabled:opacity-40;
+  background: linear-gradient(180deg, #1d2a44 0%, #0b1220 100%);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.12) inset, 0 1px 2px rgba(11, 18, 32, 0.2), 0 10px 24px -14px rgba(11, 18, 32, 0.6);
+  &:hover {
+    background: linear-gradient(180deg, #26355a 0%, #111b31 100%);
+  }
 }
 
 @utility btn-secondary {
@@ -106,5 +110,76 @@ body {
   main {
     padding: 0;
     max-width: none;
+  }
+}
+
+/* ---------- character ---------- */
+
+/* Soft two-tone glow behind the hero. */
+@utility hero-glow {
+  background:
+    radial-gradient(42rem 22rem at 18% 0%, rgba(16, 185, 129, 0.16), transparent 65%),
+    radial-gradient(36rem 20rem at 85% 10%, rgba(99, 102, 241, 0.12), transparent 65%);
+}
+
+/* Fine dot grid, faded at the edges. */
+@utility dot-grid {
+  background-image: radial-gradient(rgba(11, 18, 32, 0.12) 1px, transparent 1px);
+  background-size: 22px 22px;
+  mask-image: radial-gradient(50rem 24rem at 50% 20%, #000 20%, transparent 70%);
+}
+
+/* Gradient-inked key phrase. */
+@utility text-ink-gradient {
+  background: linear-gradient(92deg, #059669 0%, #0b1220 55%, #4f46e5 120%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Cards that lift on hover. */
+@utility card-lift {
+  @apply transition duration-300;
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-pop);
+  }
+}
+
+/* Browser-window frame for product previews. */
+@utility window {
+  @apply overflow-hidden rounded-2xl border border-slate-200/80 bg-white;
+  box-shadow: 0 1px 2px rgba(11, 18, 32, 0.05), 0 30px 60px -30px rgba(11, 18, 32, 0.35), 0 0 0 1px rgba(255, 255, 255, 0.6) inset;
+}
+
+/* Icon tiles for steps and features. */
+@utility tile {
+  @apply flex h-10 w-10 items-center justify-center rounded-xl;
+  background: linear-gradient(180deg, #ecfdf5 0%, #d1fae5 100%);
+  color: #047857;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.8) inset, 0 1px 2px rgba(5, 150, 105, 0.12);
+}
+
+/* Entrance: fade and rise, staggered through --i. */
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@utility rise {
+  animation: rise 0.6s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(var(--i, 0) * 70ms);
+}
+@media (prefers-reduced-motion: reduce) {
+  .rise {
+    animation: none;
+  }
+  .card-lift:hover {
+    transform: none;
   }
 }
