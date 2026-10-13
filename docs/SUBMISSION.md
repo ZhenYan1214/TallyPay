@@ -6,17 +6,17 @@ Everything needed for the Arc Microgrants form, ready to paste once the mainnet 
 
 - [x] `npm run demo -- --network=arc-mainnet` run on 2026-10-13: run `PB-202610-I7JR`, 7 transactions, payer fees 0.018344 USDC
 - [x] `npm run snapshot` and `npm run gas` run; README "What it costs" shows mainnet numbers
-- [x] README top links filled in (live URL assumes GitHub Pages on the ZhenYan1214/ARC repository)
+- [x] README top links filled in (live URL is GitHub Pages on the ZhenYan1214/TallyPay repository)
 - [x] Repo is public, GitHub Pages enabled, the Actions run is green (2026-10-13)
 - [x] Live URL opens and "Run the PromptBazaar demo" reconciles the **mainnet** run without any clicks; the balance roll-forward shows "fully explained"
-- [ ] Verify page: "Use a demo payment · Arc Mainnet" → "Look up" finds the memo
-- [ ] Pay page: "Request a payment" produces a link; opening it prefills the Send tab
-- [ ] Reconcile page: the demo's intent-matched payment shows the "Attach references on-chain" card; the seller-11 case shows evidence "reference"
-- [ ] Reconcile page: clear the ledger, paste any mainnet wallet, "Statement for this wallet" works
-- [ ] Export → Audit bundle, then `npm run verify-bundle -- <file> --rescan` prints "Bundle verified" and "Chain matches"
-- [ ] Open the live URL on a phone: no horizontal scroll, nav fits
-- [ ] Pay page shows Arc Mainnet by default
-- [ ] GitHub profile is public with a name, avatar and at least this pinned repo
+- [x] Verify page: "Use a demo payment · Arc Mainnet" → "Look up" finds the memo
+- [x] Pay page: "Request a payment" produces a link; opening it prefills the Send tab
+- [x] Reconcile page: the demo's intent-matched payment shows the "Attach references on-chain" card; the seller-11 case shows evidence "reference"
+- [x] Reconcile page: clear the ledger, paste any mainnet wallet, "Statement for this wallet" works
+- [x] Export → Audit bundle, then `npm run verify-bundle -- <file> --rescan` prints "Bundle verified" and "Chain matches"
+- [x] Open the live URL on a phone: no horizontal scroll, nav fits
+- [x] Pay page shows Arc Mainnet by default
+- [ ] GitHub profile is public with a name, avatar and at least this pinned repo (name and avatar confirmed; pin the repo)
 - [ ] Demo funds swept back: `npm run sweep -- --network=arc-mainnet` (optional, after the review period)
 
 ## Form fields
@@ -43,7 +43,7 @@ Payments infrastructure · Treasury · Accounting · Developer tooling · USDC �
 
 > USDC settles on Arc in under a second. Recording it still takes a finance team days of matching transaction hashes to invoices by hand. Arc's own Treasury blueprint names it: "reconciliation can require multiple teams and systems". Tieout is the layer that closes that gap, on Arc's own primitives.
 >
-> **What it does.** You keep your ledger (CSV or JSON; payee names stay off-chain). Tieout reads the wallet's activity from any public Arc RPC, in both directions, and matches every USDC movement to the ledger entry it settles: payouts to payees, receipts against invoices. Everything lands in one of seven buckets: matched, matched by intent (no memo, e.g. sent from a Safe or by a plain wallet send, and only when the pairing is unique), mismatch (with the exact short- or over-paid amount), ambiguous (held for a person, settled with one click and recorded), not paid, duplicate, unexpected. Every settled item carries its grade of evidence: memo, reference, manual, or intent. With no ledger at all, the same engine produces a statement for any Arc wallet, roll-forward and camt.054 included. The wallet balance is rolled forward against the chain, so unexplained movement cannot hide. Matched items become balanced journal entries; exceptions go to suspense. Export for Xero, for QuickBooks Online, or as an ISO 20022 camt.054 notification, the same message family Circle Mint uses for its statements. Anyone holding only an EndToEndId can verify a payment on-chain without a transaction hash.
+> **What it does.** You keep your ledger (CSV or JSON; payee names stay off-chain). Tieout reads the wallet's activity from any public Arc RPC, in both directions, and matches every USDC movement to the ledger entry it settles: payouts to payees, receipts against invoices. Everything lands in one of seven buckets: matched, matched by intent (no memo, e.g. sent from a Safe or by a plain wallet send, and only when the pairing is unique), mismatch (with the exact short- or over-paid amount), ambiguous (held for a person, settled with one click and recorded), not paid, duplicate, unexpected. Every settled item carries its grade of evidence: memo, reference, manual, or intent. With no ledger at all, the same engine produces a statement for any Arc wallet, roll-forward and camt.054 included. The wallet balance is rolled forward against the chain, so unexplained movement cannot hide. Matched items become balanced journal entries; exceptions go to suspense. Export for Xero, for QuickBooks Online, or as an ISO 20022 camt.054 notification, the notification sibling of the camt.053 statements Circle Mint issues. Anyone holding only an EndToEndId can verify a payment on-chain without a transaction hash.
 >
 > **What it uses Arc for.** No custom contracts. Each payment is wrapped in Arc's predeployed `Memo` contract with an ISO 20022-style memo (`EndToEndId`, `PmtInfId`, `Purp`, `CdtrRef`), which Arc positions precisely for "stablecoin payment reconciliation" and "batch payouts and disbursements". A payout run is one `Multicall3From` transaction, so the payer EOA stays `msg.sender` of every transfer and `sender` of every memo. The first call anchors a hash of the ledger on-chain; before sending, the app looks that anchor up and declines to send a run this wallet already anchored, which lowers the risk of a double-submitted run (a client-side check, stated as such; the reconciler reports any second settlement as a duplicate). Reconciliation ties each memo to its transfer by recomputing `keccak256(transfer(to, amount))` against the memo's `callDataHash`; the Verify page uses the indexed `memoId` topic to find a payment from its identifier alone. Because `Memo` is EOA-only, payments from Safes, custodians and plain wallet sends get a second path: any trusted EOA publishes a `tp1-ref` memo afterwards that names the transaction and shares the payment's memoId, which is the "separate EOA-signed memo transaction" Arc's docs suggest, given a schema and a button. Tieout reads Arc's EIP-7708 system transfer logs as well as the ERC-20 logs, so a native USDC "send" from MetaMask is seen and reconciled, not silently missed. Because gas is USDC, fees are a plain USD expense, booked once per day.
 >

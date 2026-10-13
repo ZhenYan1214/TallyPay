@@ -229,7 +229,7 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
 
   /** Differences that are worth saying but do not change what was paid: the batch label on the memo vs the ledger file. */
   function softNotes(entry: Entry, memoRun: string | undefined): string[] {
-    return memoRun && memoRun !== entry.PmtInfId ? [`Memo names run ${memoRun}; this ledger file is ${entry.PmtInfId}`] : [];
+    return memoRun && memoRun !== entry.PmtInfId ? [`Memo names run ${memoRun} (informational: the ledger files this entry under ${entry.PmtInfId})`] : [];
   }
 
   function settle(entry: Entry, transfer: TransferObservation, evidence: Evidence, memoRun: string | undefined, reference?: ReferenceObservation) {

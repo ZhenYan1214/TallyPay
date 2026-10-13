@@ -628,7 +628,7 @@ function Results({
         </Notice>
       )}
 
-      {report.danglingReferences.length > 0 && (
+      {!statementMode && report.danglingReferences.length > 0 && (
         <Notice tone="warn">
           {report.danglingReferences.length} trusted reference{report.danglingReferences.length === 1 ? "" : "s"} could not be used:{" "}
           {report.danglingReferences.map((d) => `${d.EndToEndId} (${d.reason === "unknown_id" ? "no such entry in the ledger" : "its transaction is outside the scanned range"})`).join("; ")}.
@@ -807,7 +807,7 @@ function Results({
           />
           <ExportCard
             title="ISO 20022 camt.054 (XML)"
-            body="Bank-style debit/credit notification for the wallet, the same message family Circle Mint uses for statements. Carries EndToEndId, creditor reference, purpose code and the transaction hash per entry."
+            body="Bank-style debit/credit notification for the wallet, from the ISO 20022 cash-management (camt) family that Circle Mint uses for its camt.053 statements. Carries EndToEndId, creditor reference, purpose code and the transaction hash per entry."
             label="Download XML"
             onClick={() => download(`tieout-camt054-${report.account.slice(2, 8)}.xml`, camt054Xml(report), "application/xml")}
           />
