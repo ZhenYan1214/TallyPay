@@ -686,7 +686,7 @@ function Results({
           hint={`${s.byEvidence.memo} by memo · ${s.byEvidence.reference} by reference · ${s.byEvidence.manual} by hand · ${s.byEvidence.intent} by intent`}
         />
         <Stat label="Exceptions" tone={exceptions ? "bad" : "good"} value={exceptions} hint={`${fmt(fromUnits(s.exceptionUnits))} USDC needs review`} />
-        <Stat label="Network fees" value={fmt(formatUnits(report.feesWei, 18), 6)} hint={`USDC across ${activity.fees.length} transaction${activity.fees.length === 1 ? "" : "s"}`} />
+        <Stat label="Network fees" value={fmt(formatUnits((report.feesWei + 500_000_000_000n) / 1_000_000_000_000n, 6), 6)} hint={`USDC across ${activity.fees.length} transaction${activity.fees.length === 1 ? "" : "s"}`} />
         <div className="bg-white p-4 sm:col-span-2 sm:p-5 lg:col-span-1">
           <div className="text-[12.5px] font-medium text-slate-500">Run anchor{report.anchors.length === 1 ? "" : "s"}</div>
           <div className="mt-2 space-y-1.5">

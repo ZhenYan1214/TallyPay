@@ -429,7 +429,8 @@ export function reconcile(runs: LedgerRun[], activity: AccountActivity, options:
     const outs = outgoing.filter((t) => t.token === b.token);
     const inflow = ins.reduce((s, t) => s + t.amount, 0n);
     const outflow = outs.reduce((s, t) => s + t.amount, 0n);
-    const fees = b.token === "USDC" ? feesWei / NATIVE_TO_UNITS : 0n;
+    // Rounded half-up to 6 decimals, the same as the journal, so the row foots on screen; the check itself stays exact in wei.
+    const fees = b.token === "USDC" ? (feesWei + NATIVE_TO_UNITS / 2n) / NATIVE_TO_UNITS : 0n;
     if (b.token === "USDC" && b.openingWei !== undefined && b.closingWei !== undefined) {
       // Exact in wei: ERC-20 amounts are whole micro-dollars, native sends keep their 18-decimal value, fees are wei.
       const wei = (t: TransferObservation) => t.amountWei ?? t.amount * NATIVE_TO_UNITS;
