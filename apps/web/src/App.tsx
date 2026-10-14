@@ -27,7 +27,7 @@ function PageFallback() {
 
 export type Route = "overview" | "console" | "verify" | "pay";
 
-export const REPO_URL = "https://github.com/ZhenYan1214/TallyPay";
+export const REPO_URL = "https://github.com/ZhenYan1214/Tieout_arc";
 
 function routeFromHash(): Route {
   const r = window.location.hash.replace(/^#\/?/, "").split("?")[0];
