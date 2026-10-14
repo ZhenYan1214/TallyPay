@@ -20,7 +20,7 @@
 1. The live demo, below, is the fastest way to see what it does.
 2. [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) is the design: evidence grades, trust boundaries, what is left out and why.
 3. [docs/MEMO_SPEC.md](docs/MEMO_SPEC.md) is the proposal for an Arc-wide payment memo convention.
-4. [docs/RESEARCH.md](docs/RESEARCH.md) is why this is needed, with sources (Chinese).
+4. [docs/INTEGRATION.md](docs/INTEGRATION.md) shows how to emit memos, publish references and reconcile, in a few lines each.
 5. `npm test` runs 58 tests in about a second; `npm run verify-bundle -- <audit.json>` re-runs any report somebody hands you.
 
 ## Try it in 60 seconds
@@ -217,7 +217,7 @@ packages/sdk     @tieout/sdk    networks, ABIs, memo codec, ledger hashing, batc
 packages/recon   @tieout/recon  reconciliation engine (both directions, variance, roll-forward), anchor check, journal builder, CSV / Xero / QBO / camt.054
 apps/web         @tieout/web    static React app: Overview, Reconcile, Verify, Pay a run, Request a payment
 scripts/                          CLI: spike, PromptBazaar scenario, reconcile, gas report, snapshot, sweep
-docs/                             memo spec, architecture, integration guide, submission kit, research notes (zh-TW), project plan (zh-TW)
+docs/                             memo spec, architecture, integration guide
 ```
 
 - **No backend and no keys on a server.** The web app reads Arc directly from the browser. Payouts are signed by the user's own wallet (EIP-1193).
@@ -271,7 +271,7 @@ npm run snapshot -- apps/web/public/demo/promptbazaar-arc-mainnet.json
 npm run gas -- apps/web/public/demo/promptbazaar-arc-mainnet.json
 ```
 
-Then update the links at the top of this file, commit the two files under `apps/web/public/demo/`, and push. The web app prefers the mainnet demo automatically when it is present. Demo funds sit in wallets derived from the payer key and come back with `npm run sweep -- --network=arc-mainnet`. [docs/SUBMISSION.md](docs/SUBMISSION.md) has the full pre-flight list.
+Then update the links at the top of this file, commit the two files under `apps/web/public/demo/`, and push. The web app prefers the mainnet demo automatically when it is present. Demo funds sit in wallets derived from the payer key and come back with `npm run sweep -- --network=arc-mainnet`.
 
 ## Accounting notes
 
@@ -329,4 +329,4 @@ Tieout 是 Arc 上的對帳層：把 Arc 上每一筆 USDC 付款與收款對到
 - 帳本雜湊錨定在鏈上，事後竄改可精準抓出；送出前先查鏈上錨點，降低重複付款的風險（屬於前端檢查，不是鏈上強制）
 - Verify 頁只憑 `EndToEndId` 就能在鏈上找到那筆付款
 - 實測：批次裡一筆帶 Memo 的付款，比單獨送一筆純轉帳還便宜
-- PromptBazaar 是模擬的市集，但所有交易都是真實的 Arc 交易；研究背景見 `docs/RESEARCH.md`
+- PromptBazaar 是模擬的市集，但所有交易都是真實的 Arc 交易

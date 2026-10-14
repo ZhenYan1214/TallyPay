@@ -12,3 +12,6 @@ coverage/
 reports/
 .claude/
 .env.testwallet
+
+# Private working files (planning, research notes, submission kit, figure sources)
+_private/
